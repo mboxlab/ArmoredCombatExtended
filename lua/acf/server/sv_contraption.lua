@@ -221,26 +221,33 @@ hook.Add("EntityRemoved", "ACE_EntRemoval", function(Ent)
 end)
 
 -- Optimization resource, this will try to clean the main table just to reduce Ent count
+local istable, ipairs = istable, ipairs
+local IsEmpty, remove = table.IsEmpty, table.remove
+local random = math.random
+local random = math.random
+local IsValid = IsValid
+local next = next
 function ACE_refreshdata(Data)
 	--Not really perfect, but better than nothing. Cframepls
-	if istable(Data) and not table.IsEmpty(Data) then
+	if istable(Data) and not IsEmpty(Data) then
 		local Entities = Data[1].CreatedEntities --wtf wire
-		local ContrId = math.random(1, 10000)
 
-		for _, ent in pairs(Entities) do
+		local ContrId = random(1, 10000)
+
+		for _, ent in next, Entities do
 			if not IsValid(ent) then continue end
 			ent.ACF = ent.ACF or {}
 			ent.ACF.ContraptionId = ContrId --Id is always changing.
 		end
 	end
-
+	local ACE_contraptionEnts = ACE.contraptionEnts
 	--print("[ACE | INFO]- Starting Refreshing. . .")
-	for index, Ent in ipairs(ACE.contraptionEnts) do
+	for index, Ent in ipairs(ACE_contraptionEnts) do
 		-- check if the entity is valid
 		if not IsValid(Ent) then --Clean up the nullentities
 			--print("Delete")
 			--print(Ent)
-			table.remove(ACE.contraptionEnts, index)
+			remove(ACE_contraptionEnts, index)
 			continue
 		end
 
@@ -249,12 +256,12 @@ function ACE_refreshdata(Data)
 		if Ent:GetParent():IsValid() and not Ent.Heat then --(not Ent.Heat and not AllowedEnts[Eclass])
 			-- if not, remove it. Removing most of parented props will decrease cost of guidances
 			--print("[ACE | INFO]- Parented prop! removing. . .")
-			table.remove(ACE.contraptionEnts, index)
+			remove(ACE_contraptionEnts, index)
 			continue
 		end
 	end
 	--print("[ACE | INFO]- Finished refreshing!")
-	--print('Total Ents registered count: ' .. table.Count( ACE.contraptionEnts ))
+	-- print('Total Ents registered count: ' .. table.Count( ACE.contraptionEnts ))
 end
 
 timer.Create( "PeriodicCleanup", 3, 0, ACE_refreshdata )

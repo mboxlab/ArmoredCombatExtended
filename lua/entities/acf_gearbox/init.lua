@@ -4,7 +4,11 @@ AddCSLuaFile("cl_init.lua")
 include("shared.lua")
 
 local GearboxTable = ACF.Weapons.Gearboxes
-
+local IsValid, ipairs, math_min, math_max, math_abs, math_Clamp, CurTime = IsValid, ipairs, math.min, math.max, math.abs, math.Clamp, CurTime
+local math_deg = math.deg
+local math_Round = math.Round
+local table_insert = table.insert
+local table_remove = table.remove
 do
 
 	local GearboxWireDescs = {
@@ -89,7 +93,7 @@ do
 
 		if Gearbox.CVT then
 			Gearbox.TargetMinRPM = Data3
-			Gearbox.TargetMaxRPM = math.max(Data4,Data3 + 100)
+			Gearbox.TargetMaxRPM = math_max(Data4,Data3 + 100)
 			Gearbox.CVTRatio = nil
 		end
 
@@ -133,31 +137,31 @@ do
 
 		local Inputs = {"Gear (" .. GearboxWireDescs["Gear"] .. ")","Gear Up (" .. GearboxWireDescs["GearUp"] .. ")","Gear Down (" .. GearboxWireDescs["GearDown"] .. ")"}
 		if Gearbox.CVT then
-			table.insert(Inputs,"CVT Ratio")
+			table_insert(Inputs,"CVT Ratio")
 		elseif Gearbox.DoubleDiff then
-			table.insert(Inputs, "Steer Rate")
+			table_insert(Inputs, "Steer Rate")
 		elseif Gearbox.Auto then
-			table.insert(Inputs, "Hold Gear")
-			table.insert(Inputs, "Shift Speed Scale")
+			table_insert(Inputs, "Hold Gear")
+			table_insert(Inputs, "Shift Speed Scale")
 			Gearbox.Hold = false
 		end
 
 		if Gearbox.Dual then
-			table.insert(Inputs, "Left Clutch")
-			table.insert(Inputs, "Right Clutch")
-			table.insert(Inputs, "Left Brake")
-			table.insert(Inputs, "Right Brake")
+			table_insert(Inputs, "Left Clutch")
+			table_insert(Inputs, "Right Clutch")
+			table_insert(Inputs, "Left Brake")
+			table_insert(Inputs, "Right Brake")
 		else
-			table.insert(Inputs, "Clutch (" .. GearboxWireDescs["Clutch"] .. ")")
-			table.insert(Inputs, "Brake (" .. GearboxWireDescs["Brake"] .. ")")
+			table_insert(Inputs, "Clutch (" .. GearboxWireDescs["Clutch"] .. ")")
+			table_insert(Inputs, "Brake (" .. GearboxWireDescs["Brake"] .. ")")
 		end
 
 		local Outputs = { "Ratio", "Entity", "Current Gear" }
 		local OutputTypes = { "NORMAL", "ENTITY", "NORMAL" }
 		if Gearbox.CVT then
-			table.insert(Outputs,"Min Target RPM")
-			table.insert(Outputs,"Max Target RPM")
-			table.insert(OutputTypes,"NORMAL")
+			table_insert(Outputs,"Min Target RPM")
+			table_insert(Outputs,"Max Target RPM")
+			table_insert(OutputTypes,"NORMAL")
 		end
 
 		Gearbox.Inputs = Wire_CreateInputs( Gearbox, Inputs )
@@ -235,31 +239,31 @@ function ENT:Update( ArgsTable )
 
 		local Inputs = {"Gear","Gear Up","Gear Down"}
 		if self.CVT then
-			table.insert(Inputs,"CVT Ratio")
+			table_insert(Inputs,"CVT Ratio")
 		elseif self.DoubleDiff then
-			table.insert(Inputs, "Steer Rate")
+			table_insert(Inputs, "Steer Rate")
 		elseif self.Auto then
-			table.insert(Inputs, "Hold Gear")
-			table.insert(Inputs, "Shift Speed Scale")
+			table_insert(Inputs, "Hold Gear")
+			table_insert(Inputs, "Shift Speed Scale")
 			self.Hold = false
 		end
 
 		if self.Dual then
-			table.insert(Inputs, "Left Clutch")
-			table.insert(Inputs, "Right Clutch")
-			table.insert(Inputs, "Left Brake")
-			table.insert(Inputs, "Right Brake")
+			table_insert(Inputs, "Left Clutch")
+			table_insert(Inputs, "Right Clutch")
+			table_insert(Inputs, "Left Brake")
+			table_insert(Inputs, "Right Brake")
 		else
-			table.insert(Inputs, "Clutch")
-			table.insert(Inputs, "Brake")
+			table_insert(Inputs, "Clutch")
+			table_insert(Inputs, "Brake")
 		end
 
 		local Outputs = { "Ratio", "Entity", "Current Gear" }
 		local OutputTypes = { "NORMAL", "ENTITY", "NORMAL" }
 		if self.CVT then
-			table.insert(Outputs,"Min Target RPM")
-			table.insert(Outputs,"Max Target RPM")
-			table.insert(OutputTypes,"NORMAL")
+			table_insert(Outputs,"Min Target RPM")
+			table_insert(Outputs,"Max Target RPM")
+			table_insert(OutputTypes,"NORMAL")
 		end
 
 		local phys = self:GetPhysicsObject()
@@ -274,7 +278,7 @@ function ENT:Update( ArgsTable )
 
 	if self.CVT then
 		self.TargetMinRPM = ArgsTable[7]
-		self.TargetMaxRPM = math.max(ArgsTable[8],ArgsTable[7] + 100)
+		self.TargetMaxRPM = math_max(ArgsTable[8],ArgsTable[7] + 100)
 		self.CVTRatio = nil
 		Wire_TriggerOutput(self, "Min Target RPM", self.TargetMinRPM)
 		Wire_TriggerOutput(self, "Max Target RPM", self.TargetMaxRPM)
@@ -340,23 +344,23 @@ function ENT:UpdateOverlayText()
 	local text = ""
 
 	if self.CVT then
-		text = "Reverse Gear: " .. math.Round( self.GearTable[ 2 ], 2 ) -- maybe a better name than "gear 2"...?
-		text = text .. "\nTarget: " .. math.Round( self.TargetMinRPM ) .. " - " .. math.Round( self.TargetMaxRPM ) .. " RPM\n"
+		text = "Reverse Gear: " .. math_Round( self.GearTable[ 2 ], 2 ) -- maybe a better name than "gear 2"...?
+		text = text .. "\nTarget: " .. math_Round( self.TargetMinRPM ) .. " - " .. math_Round( self.TargetMaxRPM ) .. " RPM\n"
 	elseif self.Auto then
 		for i = 1, self.Gears do
-			text = text .. "Gear " .. i .. ": " .. math.Round( self.GearTable[ i ], 2 ) .. ", Upshift @ " .. math.Round( self.ShiftPoints[i] / 10.936, 1 ) .. " kph / " .. math.Round( self.ShiftPoints[i] / 17.6 ,1 ) .. " mph\n"
+			text = text .. "Gear " .. i .. ": " .. math_Round( self.GearTable[ i ], 2 ) .. ", Upshift @ " .. math_Round( self.ShiftPoints[i] / 10.936, 1 ) .. " kph / " .. math_Round( self.ShiftPoints[i] / 17.6 ,1 ) .. " mph\n"
 		end
 	else
 		for i = 1, self.Gears do
-			text = text .. "Gear " .. i .. ": " .. math.Round( self.GearTable[ i ], 2 ) .. "\n"
+			text = text .. "Gear " .. i .. ": " .. math_Round( self.GearTable[ i ], 2 ) .. "\n"
 		end
 	end
 	if self.Auto then
-		text = text .. "Reverse gear: " .. math.Round( self.GearTable[ self.Reverse ], 2 ) .. "\n"
+		text = text .. "Reverse gear: " .. math_Round( self.GearTable[ self.Reverse ], 2 ) .. "\n"
 	end
 
-	text = text .. "Final Drive: " .. math.Round( self.Gear0, 2 ) .. "\n"
-	text = text .. "Torque Rating: " .. self.MaxTorque .. " Nm / " .. math.Round( self.MaxTorque * 0.73 ) .. " ft-lb"
+	text = text .. "Final Drive: " .. math_Round( self.Gear0, 2 ) .. "\n"
+	text = text .. "Torque Rating: " .. self.MaxTorque .. " Nm / " .. math_Round( self.MaxTorque * 0.73 ) .. " ft-lb"
 
 	if not self.Legal then
 		text = text .. "\nNot legal, disabled for " .. math.ceil(self.NextLegalCheck - ACF.CurTime) .. "s\nIssues: " .. self.LegalIssues
@@ -395,27 +399,27 @@ function ENT:TriggerInput( iname, value )
 			self:ChangeGear(self.Gear - 1)
 		end
 	elseif ( iname == "Clutch" ) then
-		self.LClutch = math.Clamp(1-value,0,1) * self.MaxTorque
-		self.RClutch = math.Clamp(1-value,0,1) * self.MaxTorque
+		self.LClutch = math_Clamp(1-value,0,1) * self.MaxTorque
+		self.RClutch = math_Clamp(1-value,0,1) * self.MaxTorque
 	elseif ( iname == "Brake" ) then
-		self.LBrake = math.Clamp(value,0,100)
-		self.RBrake = math.Clamp(value,0,100)
+		self.LBrake = math_Clamp(value,0,100)
+		self.RBrake = math_Clamp(value,0,100)
 	elseif ( iname == "Left Brake" ) then
-		self.LBrake = math.Clamp(value,0,100)
+		self.LBrake = math_Clamp(value,0,100)
 	elseif ( iname == "Right Brake" ) then
-		self.RBrake = math.Clamp(value,0,100)
+		self.RBrake = math_Clamp(value,0,100)
 	elseif ( iname == "Left Clutch" ) then
-		self.LClutch = math.Clamp(1-value,0,1) * self.MaxTorque
+		self.LClutch = math_Clamp(1-value,0,1) * self.MaxTorque
 	elseif ( iname == "Right Clutch" ) then
-		self.RClutch = math.Clamp(1-value,0,1) * self.MaxTorque
+		self.RClutch = math_Clamp(1-value,0,1) * self.MaxTorque
 	elseif ( iname == "CVT Ratio" ) then
-		self.CVTRatio = math.Clamp(value,0,1)
+		self.CVTRatio = math_Clamp(value,0,1)
 	elseif ( iname == "Steer Rate" ) then
-		self.SteerRate = math.Clamp(value,-1,1)
+		self.SteerRate = math_Clamp(value,-1,1)
 	elseif ( iname == "Hold Gear" ) then
 		self.Hold = value ~= 0
 	elseif ( iname == "Shift Speed Scale" ) then
-		self.ShiftScale = math.Clamp(value,0.1,1.5)
+		self.ShiftScale = math_Clamp(value,0.1,1.5)
 	end
 
 end
@@ -423,7 +427,7 @@ end
 function ENT:Think()
 
 	if ACF.CurTime > self.NextLegalCheck then
-		self.Legal, self.LegalIssues = ACF_CheckLegal(self, self.Model, math.Round(self.Mass,2), self.ModelInertia, true, true) -- requiresweld overrides parentable, need to set it false for parent-only gearboxes
+		self.Legal, self.LegalIssues = ACF_CheckLegal(self, self.Model, math_Round(self.Mass,2), self.ModelInertia, true, true) -- requiresweld overrides parentable, need to set it false for parent-only gearboxes
 		self.NextLegalCheck = ACF.Legal.NextCheck(self.legal)
 		self:UpdateOverlayText()
 
@@ -443,12 +447,12 @@ end
 
 function ENT:CheckRopes()
 
-	for Key, Link in pairs( self.WheelLink ) do
+	for Key, Link in ipairs( self.WheelLink ) do
 
 		local Ent = Link.Ent
 
 		--skips any invalid entity and remove from list
-		if not IsValid(Ent) then print("[ACE | WARN]- We found invalid ents linked to a gear, removing it. . .") table.remove(self.WheelLink, Key) continue end
+		if not IsValid(Ent) then print("[ACE | WARN]- We found invalid ents linked to a gear, removing it. . .") table_remove(self.WheelLink, Key) continue end
 
 		local OutPos = self:LocalToWorld( Link.Output )
 		local InPos = Ent:GetPos()
@@ -476,16 +480,16 @@ end
 -- and remove any links that are invalid.
 function ENT:CheckEnts()
 
-	for Key, Link in pairs( self.WheelLink ) do
+	for Key, Link in ipairs( self.WheelLink ) do
 
 		if not IsValid( Link.Ent ) then
-			table.remove( self.WheelLink, Key )
+			table_remove( self.WheelLink, Key )
 		continue end
 
 		local Phys = Link.Ent:GetPhysicsObject()
 		if not IsValid( Phys ) then
 			Link.Ent:Remove()
-			table.remove( self.WheelLink, Key )
+			table_remove( self.WheelLink, Key )
 		end
 
 	end
@@ -497,7 +501,7 @@ function ENT:Calc( InputRPM, InputInertia )
 	if not self.Legal then return 0 end
 
 	if self.LastActive == CurTime() then
-		return math.min( self.TotalReqTq, self.MaxTorque )
+		return math_min( self.TotalReqTq, self.MaxTorque )
 	end
 
 	if self.ChangeFinished < CurTime() then
@@ -511,9 +515,9 @@ function ENT:Calc( InputRPM, InputInertia )
 
 	if self.CVT and self.Gear == 1 then
 		if self.CVTRatio and self.CVTRatio > 0 then
-			self.GearTable[1] = math.Clamp(self.CVTRatio,0.01,1)
+			self.GearTable[1] = math_Clamp(self.CVTRatio,0.01,1)
 		else
-			self.GearTable[1] = math.Clamp((InputRPM - self.TargetMinRPM) / ((self.TargetMaxRPM - self.TargetMinRPM) or 1),0.05,1)
+			self.GearTable[1] = math_Clamp((InputRPM - self.TargetMinRPM) / ((self.TargetMaxRPM - self.TargetMinRPM) or 1),0.05,1)
 		end
 		self.GearRatio = (self.GearTable[1] or 0) * self.GearTable.Final
 		Wire_TriggerOutput(self, "Ratio", self.GearRatio)
@@ -529,10 +533,10 @@ function ENT:Calc( InputRPM, InputInertia )
 	end
 
 	self.TotalReqTq = 0
+	local WheelLink = self.WheelLink
+	for Key, Link in ipairs( WheelLink ) do
 
-	for Key, Link in pairs( self.WheelLink ) do
-
-		if not IsValid( Link.Ent ) then table.remove( self.WheelLink, Key ) continue end
+		if not IsValid( Link.Ent ) then table_remove( WheelLink, Key ) continue end
 		if Link.Notvalid then continue end
 
 		local Clutch = 0
@@ -547,32 +551,32 @@ function ENT:Calc( InputRPM, InputInertia )
 			if not Link.Ent.Legal then continue end
 			local Inertia = 0
 			if self.GearRatio ~= 0 then Inertia = InputInertia / self.GearRatio end
-			Link.ReqTq = math.min( Clutch, math.abs( Link.Ent:Calc( InputRPM * self.GearRatio, Inertia ) * self.GearRatio ) )
+			Link.ReqTq = math_min( Clutch, math_abs( Link.Ent:Calc( InputRPM * self.GearRatio, Inertia ) * self.GearRatio ) )
 		elseif self.DoubleDiff then
 			local RPM = self:CalcWheel( Link, SelfWorld )
 			if self.GearRatio ~= 0 and ( ( InputRPM > 0 and RPM < InputRPM ) or ( InputRPM < 0 and RPM > InputRPM ) ) then
-				local NTq = math.min( Clutch, ( InputRPM - RPM) * InputInertia)
+				local NTq = math_min( Clutch, ( InputRPM - RPM) * InputInertia)
 
 				if self.SteerRate ~= 0 then
-					Sign = self.SteerRate / math.abs( self.SteerRate )
+					Sign = self.SteerRate / math_abs( self.SteerRate )
 				else
 					Sign = 0
 				end
 				if Link.Side == 0 then
-						local DTq = math.Clamp( ( self.SteerRate * ( ( InputRPM * ( math.abs( self.SteerRate ) + 1 ) ) - (RPM * Sign) ) ) * InputInertia, -self.MaxTorque, self.MaxTorque )
+						local DTq = math_Clamp( ( self.SteerRate * ( ( InputRPM * ( math_abs( self.SteerRate ) + 1 ) ) - (RPM * Sign) ) ) * InputInertia, -self.MaxTorque, self.MaxTorque )
 					Link.ReqTq = ( NTq + DTq )
 				elseif Link.Side == 1 then
-						local DTq = math.Clamp( ( self.SteerRate * ( ( InputRPM * ( math.abs( self.SteerRate ) + 1 ) ) + (RPM * Sign) ) ) * InputInertia, -self.MaxTorque, self.MaxTorque )
+						local DTq = math_Clamp( ( self.SteerRate * ( ( InputRPM * ( math_abs( self.SteerRate ) + 1 ) ) + (RPM * Sign) ) ) * InputInertia, -self.MaxTorque, self.MaxTorque )
 					Link.ReqTq = ( NTq - DTq )
 				end
 			end
 		else
 			local RPM = self:CalcWheel( Link, SelfWorld )
 			if self.GearRatio ~= 0 and ( ( InputRPM > 0 and RPM < InputRPM ) or ( InputRPM < 0 and RPM > InputRPM ) ) then
-				Link.ReqTq = math.min( Clutch, ( InputRPM - RPM ) * InputInertia )
+				Link.ReqTq = math_min( Clutch, ( InputRPM - RPM ) * InputInertia )
 			end
 		end
-		self.TotalReqTq = self.TotalReqTq + math.abs( Link.ReqTq )
+		self.TotalReqTq = self.TotalReqTq + math_abs( Link.ReqTq )
 
 
 	end
@@ -581,7 +585,7 @@ function ENT:Calc( InputRPM, InputInertia )
 	--self.Heat = ACE_HeatFromGearbox( self , InputRPM)
 	--Wire_TriggerOutput(self, "Heat", self.Heat)
 
-	return math.min( self.TotalReqTq, self.MaxTorque )
+	return math_min( self.TotalReqTq, self.MaxTorque )
 
 end
 
@@ -601,36 +605,37 @@ function ENT:CalcWheel( Link, SelfWorld )
 end
 
 function ENT:Act( Torque, DeltaTime, MassRatio )
-
-	if not self.Legal then self.LastActive = CurTime() return end
+	local _self = self:GetTable()
+	if not _self.Legal then _self.LastActive = CurTime() return end
 	--internal torque loss from being damaged
-	local Loss = math.Clamp(((1 - 0.4) / 0.5) * ((self.ACF.Health / self.ACF.MaxHealth) - 1) + 1, 0.4, 1)
+	local Loss = math_Clamp(((1 - 0.4) / 0.5) * ((_self.ACF.Health / _self.ACF.MaxHealth) - 1) + 1, 0.4, 1)
 
 	--internal torque loss from inefficiency
-	local Slop = self.Auto and 0.9 or 1
+	local Slop = _self.Auto and 0.9 or 1
 
 	local ReactTq = 0
 	-- Calculate the ratio of total requested torque versus what's avaliable, and then multiply it but the current gearratio
 	local AvailTq = 0
-	if Torque ~= 0 and self.GearRatio ~= 0 then
-		AvailTq = math.min( math.abs( Torque ) / self.TotalReqTq, 1 ) / self.GearRatio * -( -Torque / math.abs( Torque ) ) * Loss * Slop
+	if Torque ~= 0 and _self.GearRatio ~= 0 then
+		AvailTq = math_min( math_abs( Torque ) / _self.TotalReqTq, 1 ) / _self.GearRatio * -( -Torque / math_abs( Torque ) ) * Loss * Slop
 	end
 
-	for _, Link in pairs( self.WheelLink ) do
+	local ActWheel = self.ActWheel 
+	for _, Link in ipairs( _self.WheelLink ) do
 
 		if Link.Notvalid then continue end
 
 		local Brake = 0
 		if Link.Side == 0 then
-			Brake = self.LBrake
+			Brake = _self.LBrake
 		elseif Link.Side == 1 then
-			Brake = self.RBrake
+			Brake = _self.RBrake
 		end
 
 		if Link.Ent.IsGeartrain then
 			Link.Ent:Act( Link.ReqTq * AvailTq, DeltaTime, MassRatio )
 		else
-			self:ActWheel( Link, Link.ReqTq * AvailTq, Brake, DeltaTime )
+			ActWheel(self, Link, Link.ReqTq * AvailTq, Brake, DeltaTime )
 			ReactTq = ReactTq + Link.ReqTq * AvailTq
 		end
 
@@ -638,38 +643,39 @@ function ENT:Act( Torque, DeltaTime, MassRatio )
 	end
 
 	local BoxPhys
-	if IsValid( self.RootParent ) then
-		BoxPhys = self.RootParent:GetPhysicsObject()
+	if IsValid( _self.RootParent ) then
+		BoxPhys = _self.RootParent:GetPhysicsObject()
 	else
 		BoxPhys = self:GetPhysicsObject()
 	end
 
 	if IsValid( BoxPhys ) and ReactTq ~= 0 then
-		local Torque = self:GetRight() * math.Clamp( 2 * math.deg( ReactTq * MassRatio ) * DeltaTime, -500000, 500000 )
+		local Torque = self:GetRight() * math_Clamp( 2 * math_deg( ReactTq * MassRatio ) * DeltaTime, -500000, 500000 )
 		BoxPhys:ApplyTorqueCenter( Torque )
 	end
 
-	self.LastActive = CurTime()
+	_self.LastActive = CurTime()
 
 end
-
+local meta_PhysObj = FindMetaTable("PhysObj")
+local PhysObj_LocalToWorldVector = meta_PhysObj.LocalToWorldVector
 function ENT:ActWheel( Link, Torque, Brake, DeltaTime )
 
 	local Phys = Link.Ent:GetPhysicsObject()
-	local TorqueAxis = Phys:LocalToWorldVector( Link.Axis )
+	local TorqueAxis = PhysObj_LocalToWorldVector( Phys, Link.Axis )
 
 	local BrakeMult = 0
 	if Brake > 0 then
 		BrakeMult = Link.Vel * Link.Inertia * Brake / 5
 	end
 
-	local Torque = TorqueAxis * math.Clamp( math.deg( -Torque * 1.5 - BrakeMult ) * DeltaTime, -500000, 500000 )
+	local Torque = TorqueAxis * math_Clamp( math_deg( -Torque * 1.5 - BrakeMult ) * DeltaTime, -500000, 500000 )
 	Phys:ApplyTorqueCenter( Torque )
 end
 
 function ENT:ChangeGear(value)
 
-	local new = math.Clamp(math.floor(value),0,self.Gears)
+	local new = math_Clamp(math.floor(value),0,self.Gears)
 	if self.Gear == new then return end
 
 	self.Gear = new
@@ -686,7 +692,7 @@ end
 --handles gearing for automatics; 0=neutral, 1=forward autogearing, 2=reverse
 function ENT:ChangeDrive(value)
 
-	local new = math.Clamp(math.floor(value),0,2)
+	local new = math_Clamp(math.floor(value),0,2)
 	if self.Drive == new then return end
 
 	self.Drive = new
@@ -806,7 +812,7 @@ function ENT:Link( Target )
 		ReqTq		= 0,
 		Vel			= 0
 	}
-	table.insert( self.WheelLink, Link )
+	table_insert( self.WheelLink, Link )
 
 	return true, "Link successful!"
 
@@ -814,7 +820,7 @@ end
 
 function ENT:Unlink( Target )
 
-	for Key, Link in pairs( self.WheelLink ) do
+	for Key, Link in ipairs( self.WheelLink ) do
 
 		if Link.Ent == Target then
 
@@ -829,7 +835,7 @@ function ENT:Unlink( Target )
 				Link.Rope:Remove()
 			end
 
-			table.remove( self.WheelLink, Key )
+			table_remove( self.WheelLink, Key )
 
 			return true, "Unlink successful!"
 
@@ -850,13 +856,13 @@ function ENT:PreEntityCopy()
 	-- Clean the table of any invalid entities
 	for Key, Link in pairs( self.WheelLink ) do
 		if not IsValid( Link.Ent ) then
-			table.remove( self.WheelLink, Key )
+			table_remove( self.WheelLink, Key )
 		end
 	end
 
 	-- Then save it
 	for _, Link in pairs( self.WheelLink ) do
-		table.insert( entids, Link.Ent:EntIndex() )
+		table_insert( entids, Link.Ent:EntIndex() )
 	end
 
 	info.entities = entids

@@ -6,6 +6,8 @@ AddCSLuaFile( "cl_init.lua" )
 include("shared.lua")
 
 local EngineTable = ACF.Weapons.Engines
+local ACF = ACF
+local ACE = ACE
 local FuelLinkDistBase = 512
 
 do
@@ -376,59 +378,66 @@ end
 
 function ENT:Think()
 
-	if ACF.CurTime > self.NextLegalCheck then
-		self.Legal, self.LegalIssues = ACF_CheckLegal(self, self.Model, math.Round(self.Weight,2), self.ModelInertia, true, true)
-		self.NextLegalCheck = ACF.Legal.NextCheck(self.legal)
+	local _self = self:GetTable()
+	
+	if ACF.CurTime > _self.NextLegalCheck then
+		_self.Legal, _self.LegalIssues = ACF_CheckLegal(self, _self.Model, math.Round(_self.Weight,2), _self.ModelInertia, true, true)
+		_self.NextLegalCheck = ACF.Legal.NextCheck(_self.legal)
 		self:CheckRopes()
 		self:CheckFuel()
 		self:CalcMassRatio()
 
 		self:UpdateOverlayText()
-		self.NextUpdate = ACF.CurTime + 1
+		_self.NextUpdate = ACF.CurTime + 1
 
-		self:IllegalCrewSeatRemove(self.CrewLink)
+		self:IllegalCrewSeatRemove(_self.CrewLink)
 
-		if not self.Legal and self.Active then
+		if not _self.Legal and _self.Active then
 			self:TriggerInput("Active",0) -- disable if not legal and active
-			self.LockOnActive = true
+			_self.LockOnActive = true
 		else
 			--turn on the engine back as it was before the lockdown. IK that then engine could turn on when the user turned off by himself after of flagged illegal, i prefer that it turns on though
-			if self.LockOnActive then
-				self.LockOnActive = false
+			if _self.LockOnActive then
+				_self.LockOnActive = false
 				self:TriggerInput("Active",1)
 			end
 		end
 	end
 
 	-- when not legal, update overlay displaying lockout and issues
-	if not self.Legal and ACF.CurTime > self.NextUpdate then
+	if not _self.Legal and ACF.CurTime > _self.NextUpdate then
 		self:UpdateOverlayText()
-		self.NextUpdate = ACF.CurTime + 1
+		_self.NextUpdate = ACF.CurTime + 1
 	end
 
-	self.Heat = ACE_HeatFromEngine( self )
-	Wire_TriggerOutput(self, "EngineHeat", self.Heat)
+	_self.Heat = ACE_HeatFromEngine( self )
+	Wire_TriggerOutput(self, "EngineHeat", _self.Heat)
 
-	if ACF.CurTime > self.NextUpdate then
+	if ACF.CurTime > _self.NextUpdate then
 
-		self.TotalFuel = self:GetMaxFuel()
-		Wire_TriggerOutput(self, "Total Fuel", self.TotalFuel)
+		_self.TotalFuel = self:GetMaxFuel()
+		Wire_TriggerOutput(self, "Total Fuel", _self.TotalFuel)
 
 		self:UpdateOverlayText()
-		self.NextUpdate = ACF.CurTime + 0.5
+		_self.NextUpdate = ACF.CurTime + 0.5
 	end
 
-	if self.Active then
+	if _self.Active then
 		self:CalcRPM()
 	end
 
-	self.LastThink = ACF.CurTime
+	_self.LastThink = ACF.CurTime
 	self:NextThink( ACF.CurTime )
 	return true
 
 end
 
 -- specialized calcmassratio for engines
+local IsValid = IsValid
+local table_Merge = table.Merge
+local table_Copy = table.Copy
+local math_Round = math.Round
+local pairs = pairs
 function ENT:CalcMassRatio()
 
 	local Mass = 0
@@ -452,14 +461,14 @@ function ENT:CalcMassRatio()
 
 	-- if there's a wheel that's not in the engine constraint tree, use it as a start for getting physical constraints
 	if IsValid(Check) then -- sneaky bastards trying to get away with remote engines...  NOT ANYMORE
-		table.Merge(PhysEnts, Wheels) -- I mean, they'll still be remote... but they wont get free extra power from calcmass not seeing the contraption it's powering
+		table_Merge(PhysEnts, Wheels) -- I mean, they'll still be remote... but they wont get free extra power from calcmass not seeing the contraption it's powering
 		ACF_GetAllPhysicalConstraints( Check, PhysEnts ) -- no need for assignment here
 	end
 
 	-- add any parented but not constrained props you sneaky bastards
-	local AllEnts = table.Copy( PhysEnts )
+	local AllEnts = table_Copy( PhysEnts )
 	for _, v in pairs( PhysEnts ) do
-		table.Merge( AllEnts, ACF_GetAllChildren( v ) )
+		table_Merge( AllEnts, ACF_GetAllChildren( v ) )
 	end
 
 	for _, v in pairs( AllEnts ) do
@@ -487,8 +496,8 @@ function ENT:CalcMassRatio()
 	--self.MassRatio = 1 / (Tmass/10000)
 	--self.MassRatio = (PhysMass ^ 0.9225) / Mass
 
-	Wire_TriggerOutput( self, "Mass", math.Round( Mass, 2 ) )
-	Wire_TriggerOutput( self, "Physical Mass", math.Round( PhysMass, 2 ) )
+	Wire_TriggerOutput( self, "Mass", math_Round( Mass, 2 ) )
+	Wire_TriggerOutput( self, "Physical Mass", math_Round( PhysMass, 2 ) )
 
 end
 
@@ -521,16 +530,22 @@ local function IsValidfueltank( Tank )
 end
 
 -- Literally, the engine main core. Here the RPMs, Torque and important stuff is calculated here.
+local IsValid, ipairs, math_min, math_max, math_Clamp = IsValid, ipairs, math.min, math.max, math.Clamp
+local CurTime = CurTime
+local math_Round = math.Round
+local math_remap = math.Remap
+local table_remove = table.remove
+local table_insert = table.insert
 function ENT:CalcRPM()
-
-	local DeltaTime = CurTime() - self.LastThink
+	local _self = self:GetTable()
+	local DeltaTime = CurTime() - _self.LastThink
 
 	------------------------ Fuel check section ------------------------
 
 	--First, find the first active fuel tank on among the linked fuels.
 	local Tank
 	local boost = 1
-	for _, FuelTank in ipairs(self.FuelLink) do
+	for _, FuelTank in ipairs(_self.FuelLink) do
 		if IsValidfueltank( FuelTank ) then
 			Tank = FuelTank
 			break --return Tank
@@ -541,16 +556,16 @@ function ENT:CalcRPM()
 	-- Concern: why is the fuel usage returning 0 when RPMs hit redline? Maybe the engine hits the redline and torque becomes 0 = no fuel usage??
 	if IsValid(Tank) then
 		local Consumption
-		if self.FuelType == "Electric" then
-			Consumption = (self.Torque * self.FlyRPM / 9548.8) * self.FuelUse * DeltaTime
+		if _self.FuelType == "Electric" then
+			Consumption = (_self.Torque * _self.FlyRPM / 9548.8) * _self.FuelUse * DeltaTime
 		else
-			local Load = 0.3 + self.Throttle * 0.7 -- the heck are these magic numbers?
-			Consumption = Load * self.FuelUse * (self.FlyRPM / self.PeakKwRPM) * DeltaTime / ACF.FuelDensity[Tank.FuelType]
+			local Load = 0.3 + _self.Throttle * 0.7 -- the heck are these magic numbers?
+			Consumption = Load * _self.FuelUse * (_self.FlyRPM / _self.PeakKwRPM) * DeltaTime / ACF.FuelDensity[Tank.FuelType]
 		end
-		Tank.Fuel = math.max(Tank.Fuel - Consumption,0)
+		Tank.Fuel = math_max(Tank.Fuel - Consumption,0)
 		boost = ACF.TorqueBoost
-		Wire_TriggerOutput(self, "Fuel Use", math.Round(60 * Consumption / DeltaTime,3))
-	elseif self.RequiresFuel then
+		Wire_TriggerOutput(self, "Fuel Use", math_Round(60 * Consumption / DeltaTime,3))
+	elseif _self.RequiresFuel then
 		self:TriggerInput( "Active", 0 ) --shut off if no fuel and requires it
 		return 0
 	else
@@ -562,62 +577,64 @@ function ENT:CalcRPM()
 	--adjusting performance based on damage
 	-- TorqueMult is a mutipler that affects the final Torque an engine can offer at its max.
 	-- PeakTorque is the final possible torque to get.
-	local driverboost = self.HasDriver and ACF.DriverTorqueBoost or 1
-	self.TorqueMult = math.Clamp(((1 - self.TorqueScale) / 0.5) * ((self.ACF.Health / self.ACF.MaxHealth) - 1) + 1, self.TorqueScale, 1)
-	self.PeakTorque = self.PeakTorqueHeld * self.TorqueMult * driverboost
+	local driverboost = _self.HasDriver and ACF.DriverTorqueBoost or 1
+	_self.TorqueMult = math_Clamp(((1 - _self.TorqueScale) / 0.5) * ((_self.ACF.Health / _self.ACF.MaxHealth) - 1) + 1, _self.TorqueScale, 1)
+	_self.PeakTorque = _self.PeakTorqueHeld * _self.TorqueMult * driverboost
 
 	-- Calculate the current torque from flywheel RPM.
-	local perc = math.Remap(self.FlyRPM, self.IdleRPM, self.LimitRPM, 0, 1)
-	self.Torque = boost * self.Throttle * ACF_CalcCurve(self.TorqueCurve, perc) * self.PeakTorque * (self.FlyRPM < self.LimitRPM and 1 or 0)
+	local perc = math_remap(_self.FlyRPM, _self.IdleRPM, _self.LimitRPM, 0, 1)
+	_self.Torque = boost * _self.Throttle * ACF_CalcCurve(_self.TorqueCurve, perc) * _self.PeakTorque * (_self.FlyRPM < _self.LimitRPM and 1 or 0)
 
 	-- Let's accelerate the flywheel based on that torque.
 	-- Calculate drag
 	local Drag
-	if self.iselec then
-		Drag = self.PeakTorque * (math.max( self.FlyRPM - self.IdleRPM, 0) / self.FlywheelOverride) * (1 - self.Throttle) / self.Inertia
+	local flyRPM = _self.FlyRPM
+	if _self.iselec then
+		Drag = _self.PeakTorque * (math_max( flyRPM - _self.IdleRPM, 0) / _self.FlywheelOverride) * (1 - _self.Throttle) / _self.Inertia
 	else
-		Drag = self.PeakTorque * (math.max( self.FlyRPM - self.IdleRPM, 0) / self.PeakMaxRPM) * ( 1 - self.Throttle) / self.Inertia
+		Drag = _self.PeakTorque * (math_max( flyRPM - _self.IdleRPM, 0) / _self.PeakMaxRPM) * ( 1 - _self.Throttle) / _self.Inertia
 	end
-	self.FlyRPM = math.Clamp( self.FlyRPM + self.Torque / self.Inertia - Drag, 0 , self.LimitRPM )
-
+	_self.FlyRPM = math_Clamp( flyRPM + _self.Torque / _self.Inertia - Drag, 0 , _self.LimitRPM )
+	flyRPM = _self.FlyRPM
 	-- The gearboxes don't think on their own, it's the engine that calls them, to ensure consistent execution order
-	local Boxes = table.Count( self.GearLink )
+
+	-- local Boxes = table.Count( _self.GearLink )
 	local TotalReqTq = 0
 	-- Get the requirements for torque for the gearboxes (Max clutch rating minus any wheels currently spinning faster than the Flywheel)
-	for _, Link in pairs( self.GearLink ) do
+	for _, Link in ipairs( _self.GearLink ) do
 		if not Link.Ent.Legal then continue end
 
-		Link.ReqTq = Link.Ent:Calc( self.FlyRPM, self.Inertia )
+		Link.ReqTq = Link.Ent:Calc( flyRPM, _self.Inertia )
 		TotalReqTq = TotalReqTq + Link.ReqTq
 	end
 
 	-- This is the presently available torque from the engine
-	local TorqueDiff = math.max( self.FlyRPM - self.IdleRPM, 0 ) * self.Inertia
+	local TorqueDiff = math_max( flyRPM - _self.IdleRPM, 0 ) * _self.Inertia
 
 	-- Calculate the ratio of total requested torque versus what's avaliable
-	local AvailRatio = math.min( TorqueDiff / TotalReqTq / Boxes, 1 )
+	local AvailRatio = math_min( TorqueDiff / TotalReqTq / #_self.GearLink, 1 )
 
 	-- Split the torque fairly between the gearboxes who need it
-	for _, Link in pairs( self.GearLink ) do
+	for _, Link in ipairs( _self.GearLink ) do
 		if not Link.Ent.Legal then continue end
 
-		Link.Ent:Act( Link.ReqTq * AvailRatio * self.MassRatio, DeltaTime, self.MassRatio )
+		Link.Ent:Act( Link.ReqTq * AvailRatio * _self.MassRatio, DeltaTime, _self.MassRatio )
 	end
-	self.FlyRPM = self.FlyRPM - math.min( TorqueDiff, TotalReqTq ) / self.Inertia
+	_self.FlyRPM = flyRPM - math_min( TorqueDiff, TotalReqTq ) / _self.Inertia
 
 
 	-- Heat Temperature calculation. Below is the damage caused by rpm if damaged.
-	self.Heat = ACE_HeatFromEngine( self )
+	_self.Heat = ACE_HeatFromEngine( self )
 
-	local HealthRatio = self.ACF.Health / self.ACF.MaxHealth
+	local HealthRatio = _self.ACF.Health / _self.ACF.MaxHealth
 	if HealthRatio < 0.95 then
 		if HealthRatio > 0.025 then
 			local PhysObj = self:GetPhysicsObject()
 			local Mass = PhysObj:GetMass()
 			HitRes = ACF_Damage(self, {
-				Kinetic = (1 + math.max(Mass / 2, 20) / 2.5) / self.Throttle * 100,
+				Kinetic = (1 + math_max(Mass / 2, 20) / 2.5) / _self.Throttle * 100,
 				Momentum = 0,
-				Penetration = (1 + math.max(Mass / 2, 20) / 2.5) / self.Throttle * 100
+				Penetration = (1 + math_max(Mass / 2, 20) / 2.5) / _self.Throttle * 100
 			}, 2, 0, self:CPPIGetOwner())
 		else
 			--Turns Off due to massive damage
@@ -627,26 +644,25 @@ function ENT:CalcRPM()
 
 	--  743.2 Estimate for engine material, 35% weight steel, 65% weight aluminum
 	-- Then we calc a smoothed RPM value for the sound effects. For some reason this thing exists.
-	table.remove( self.RPM, 10 )
-	table.insert( self.RPM, 1, self.FlyRPM )
+	table_remove( _self.RPM, 10 )
+	table_insert( _self.RPM, 1, _self.FlyRPM )
 
 	local SmoothRPM = 0
-	for _, RPM in pairs( self.RPM ) do
+	for _, RPM in ipairs( _self.RPM ) do
 		SmoothRPM = SmoothRPM + (RPM or 0)
 	end
 	SmoothRPM = SmoothRPM / 10
 
-	local Power = self.Torque * SmoothRPM / 9548.8
-	Wire_TriggerOutput(self, "Torque", math.Round(self.Torque))
-	Wire_TriggerOutput(self, "Power", math.Round(Power))
-	Wire_TriggerOutput(self, "RPM", math.Round(self.FlyRPM))
-
-	if self.Sound then
-		self.Sound:ChangePitch( math.min( 20 + (SmoothRPM * (self.SoundPitch / 100)) / 50, 255 ), 0 )
-		self.Sound:ChangeVolume( 0.25 + (0.1 + 0.9 * ((SmoothRPM / self.LimitRPM) ^ 1.5)) * self.Throttle / 1.5, 0 )
+	local Power = _self.Torque * SmoothRPM / 9548.8
+	Wire_TriggerOutput(self, "Torque", math_Round(_self.Torque))
+	Wire_TriggerOutput(self, "Power", math_Round(Power))
+	Wire_TriggerOutput(self, "RPM", math_Round(_self.FlyRPM))
+	local s = _self.Sound
+	if s then
+		s:ChangePitch( math_min( 20 + (SmoothRPM * (_self.SoundPitch / 100)) / 50, 255 ), 0 )
+		s:ChangeVolume( 0.25 + (0.1 + 0.9 * ((SmoothRPM / _self.LimitRPM) ^ 1.5)) * _self.Throttle / 1.5, 0 )
 	end
 
-	return RPM
 end
 
 -------------------------- Periodic Link Engine checks --------------------------

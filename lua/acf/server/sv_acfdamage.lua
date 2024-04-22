@@ -1,3 +1,18 @@
+local math_min = math.min
+local math_max = math.max
+local math_floor = math.floor
+local ACF, ACE = ACF, ACE
+local istable = istable
+local ipairs = ipairs
+local IsValid = IsValid
+local util_TraceLine = util.TraceLine
+local util_TraceHull = util.TraceHull
+local table_insert = table.insert
+local WorldToLocal = WorldToLocal
+local ang0 = Angle(0,0,0)
+local math_Rand = math.Rand
+local math_Random = math.random
+
 -- This file is meant for the advanced damage functions used by the Armored Combat Framework
 ACE.Spall		= {}
 ACE.CurSpallIndex = 0
@@ -42,7 +57,7 @@ function ACF_HEFind( Hitpos, Radius )
 		if ACF.HEFilter[ent:GetClass()] then continue end
 		if not ent:IsSolid() then continue end
 
-		table.insert( Table, ent )
+		table_insert( Table, ent )
 
 	end
 
@@ -70,9 +85,9 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 	local Radius       = ACE_CalculateHERadius(FillerMass) -- Scalling law found on the net, based on 1PSI overpressure from 1 kg of TNT at 15m.
 	local MaxSphere    = 4 * PI * (Radius * 2.54) ^ 2 -- Surface Area of the sphere at maximum radius
 	local Power        = FillerMass * ACF.HEPower -- Power in KiloJoules of the filler mass of  TNT
-	local Amp          = math.min(Power / 2000, 50)
+	local Amp          = math_min(Power / 2000, 50)
 
-	local Fragments    = math.max(math.floor((FillerMass / FragMass) * ACF.HEFrag), 2)
+	local Fragments    = math_max(math_floor((FillerMass / FragMass) * ACF.HEFrag), 2)
 	local FragWeight   = FragMass / Fragments
 	local FragVel      = ( Power * 50000 / FragWeight / Fragments ) ^ 0.5
 	local FragArea     = (FragWeight / 7.8) ^ 0.33
@@ -106,7 +121,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 				TraceInit.endpos   = TargetCenter
 				TraceInit.filter   = OccFilter
 
-				util.TraceLine( TraceInit )
+				util_TraceLine( TraceInit )
 
 				--if above failed getting the target. Try again by nearest point instead.
 				if not TraceRes.Hit then
@@ -150,7 +165,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 					if Hitat == Hitpos then Hitat = TargetPos end
 
 					TraceInit.endpos	= Hitat + (Hitat-Hitpos):GetNormalized() * 100
-					util.TraceHull( TraceInit )
+					util_TraceHull( TraceInit )
 				end
 
 				--HE has direct view with the prop, so lets damage it
@@ -162,18 +177,18 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 					Table.Ent		= Tar
 
 					if ACE.CritEnts[Tar:GetClass()] then
-						Table.LocalHitpos = WorldToLocal(Hitpos, Angle(0,0,0), TargetPos, Tar:GetAngles())
+						Table.LocalHitpos = WorldToLocal(Hitpos, ang0, TargetPos, Tar:GetAngles())
 					end
 
 					Table.Dist		= Hitpos:Distance(TargetPos)
 					Table.Vec		= (TargetPos - Hitpos):GetNormalized()
 
-					local Sphere		= math.max(4 * PI * (Table.Dist * 2.54 ) ^ 2,1) --Surface Area of the sphere at the range of that prop
+					local Sphere		= math_max(4 * PI * (Table.Dist * 2.54 ) ^ 2,1) --Surface Area of the sphere at the range of that prop
 					local AreaAdjusted  = Tar.ACF.Area
 
 					--Project the Area of the prop to the Area of the shadow it projects at the explosion max radius
-					Table.Area = math.min(AreaAdjusted / Sphere,0.5) * MaxSphere
-					table.insert(Damage, Table) --Add it to the Damage table so we know to damage it once we tallied everything
+					Table.Area = math_min(AreaAdjusted / Sphere,0.5) * MaxSphere
+					table_insert(Damage, Table) --Add it to the Damage table so we know to damage it once we tallied everything
 
 					-- is it adding it too late?
 					TotalArea = TotalArea + Table.Area
@@ -182,7 +197,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 
 			else
 				Targets[i] = NULL	--Target was invalid, so let's ignore it
-				table.insert( OccFilter , Tar ) -- updates the filter in TraceInit too
+				table_insert( OccFilter , Tar ) -- updates the filter in TraceInit too
 			end
 
 		end
@@ -192,7 +207,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 
 			local Tar              = Table.Ent
 			local TargetPos        = Tar:GetPos()
-			local Feathering       = (1-math.min(1,Table.Dist / Radius)) ^ ACF.HEFeatherExp
+			local Feathering       = (1-math_min(1,Table.Dist / Radius)) ^ ACF.HEFeatherExp
 			local AreaFraction     = Table.Area / TotalArea
 			local PowerFraction    = Power * AreaFraction  --How much of the total power goes to that prop
 			local AreaAdjusted     = (Tar.ACF.Area / ACF.Threshold) * Feathering
@@ -207,10 +222,10 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 
 			local FragRes
 			local FragHit	= Fragments * AreaFraction
-			FragVel	= math.max(FragVel - ( (Table.Dist / FragVel) * FragVel ^ 2 * FragWeight ^ 0.33 / 10000 ) / ACF.DragDiv,0)
+			FragVel	= math_max(FragVel - ( (Table.Dist / FragVel) * FragVel ^ 2 * FragWeight ^ 0.33 / 10000 ) / ACF.DragDiv,0)
 			local FragKE	= ACF_Kinetic( FragVel , FragWeight * FragHit, 1500 )
 			if FragHit < 0 then
-				if math.Rand(0,1) > FragHit then FragHit = 1 else FragHit = 0 end
+				if math_Rand(0,1) > FragHit then FragHit = 1 else FragHit = 0 end
 			end
 
 			-- erroneous HE penetration bug workaround; retries trace on crit ents after a short delay to ensure a hit.
@@ -225,7 +240,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 					if not IsValid(Tar) then return end
 
 					--recreate the hitpos and hitat, add slight jitter to hitpos and move it away some
-					local NewHitpos = LocalToWorld(Table.LocalHitpos + Table.LocalHitpos:GetNormalized() * 3, Angle(math.random(),math.random(),math.random()), TargetPos, Tar:GetAngles())
+					local NewHitpos = LocalToWorld(Table.LocalHitpos + Table.LocalHitpos:GetNormalized() * 3, Angle(math_Random(),math_Random(),math_Random()), TargetPos, Tar:GetAngles())
 					local NewHitat  = Tar:NearestPoint( NewHitpos )
 
 					local Occlusion	= {
@@ -233,12 +248,12 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 						endpos = NewHitat + (NewHitat-NewHitpos):GetNormalized() * 100,
 						filter = NoOcc,
 					}
-					local Occ	= util.TraceLine( Occlusion )
+					local Occ	= util_TraceLine( Occlusion )
 
 					if not Occ.Hit and NewHitpos ~= NewHitat then
 						local NewHitat  = TargetPos
 						Occlusion.endpos	= NewHitat + (NewHitat-NewHitpos):GetNormalized() * 100
-						Occ = util.TraceLine( Occlusion )
+						Occ = util_TraceLine( Occlusion )
 					end
 
 					if not (Occ.Hit and Occ.Entity:EntIndex() ~= Tar:EntIndex()) and not (not Occ.Hit and NewHitpos ~= NewHitat) then
@@ -266,7 +281,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 
 					--Add the debris created to the ignore so we don't hit it in other rounds
 					local Debris = ACF_HEKill( Tar , Table.Vec , PowerFraction , Hitpos )
-					table.insert( OccFilter , Debris )
+					table_insert( OccFilter , Debris )
 
 					LoopKill = true --look for fresh targets since we blew a hole somewhere
 
@@ -283,27 +298,27 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 
 		end
 
-		Power = math.max(Power - PowerSpent,0)
+		Power = math_max(Power - PowerSpent,0)
 	end
 
 		--There was an attempt
 		--There has got to be a better way. Too bad viewpunches aren't clientside.
-		local RadiusSQ = 15 * Radius^2
-		for _,Tar in ipairs(player.GetAll()) do --ipairs(player.GetAll()), player.Iterator()
-			if Tar:HasGodMode() then continue end
-			local Difpos = (Tar:GetPos() - Hitpos)
-			local PlayerDist = Difpos:LengthSqr() + 0.001 --Divide by 0 is death
+		-- local RadiusSQ = 15 * Radius^2
+		-- for _,Tar in ipairs(player.GetAll()) do --ipairs(player.GetAll()), player.Iterator()
+		-- 	if Tar:HasGodMode() then continue end
+		-- 	local Difpos = (Tar:GetPos() - Hitpos)
+		-- 	local PlayerDist = Difpos:LengthSqr() + 0.001 --Divide by 0 is death
 
-			if PlayerDist > RadiusSQ then continue end
-			local DifAngle = Difpos:Angle()
-			local RelAngle = (Angle(-DifAngle.pitch,DifAngle.yaw,0)) - Tar:EyeAngles() + Angle(360,-180,0)
-			RelAngle = Angle(math.NormalizeAngle(RelAngle.pitch), math.NormalizeAngle(RelAngle.yaw))
-			RelAngle = Angle(RelAngle.pitch > 0 and 1 or (RelAngle.pitch == 0 and 0 or -1),RelAngle.yaw > 0 and 1 or (RelAngle.yaw == 0 and 0 or -1),0) --Converts to signs
+		-- 	if PlayerDist > RadiusSQ then continue end
+		-- 	local DifAngle = Difpos:Angle()
+		-- 	local RelAngle = (Angle(-DifAngle.pitch,DifAngle.yaw,0)) - Tar:EyeAngles() + Angle(360,-180,0)
+		-- 	RelAngle = Angle(math.NormalizeAngle(RelAngle.pitch), math.NormalizeAngle(RelAngle.yaw))
+		-- 	RelAngle = Angle(RelAngle.pitch > 0 and 1 or (RelAngle.pitch == 0 and 0 or -1),RelAngle.yaw > 0 and 1 or (RelAngle.yaw == 0 and 0 or -1),0) --Converts to signs
 
-			PlayerDist = math.max(PlayerDist,13949) --Will never go below 3 meters.
+		-- 	PlayerDist = math_max(PlayerDist,13949) --Will never go below 3 meters.
 
-			Tar:ViewPunch( Angle( math.Clamp(RelAngle.pitch * Amp * -120000 / PlayerDist * math.Rand(0.5,1),-60,60), math.Clamp( RelAngle.yaw * Amp * -100000 / PlayerDist * math.Rand(0.5,1),-60,60), math.Clamp( RelAngle.yaw * Amp * 50000 / PlayerDist * math.Rand(0.5,1),-60,60) ) )
-		end
+		-- 	Tar:ViewPunch( Angle( math.Clamp(RelAngle.pitch * Amp * -120000 / PlayerDist * math_Rand(0.5,1),-60,60), math.Clamp( RelAngle.yaw * Amp * -100000 / PlayerDist * math_Rand(0.5,1),-60,60), math.Clamp( RelAngle.yaw * Amp * 50000 / PlayerDist * math_Rand(0.5,1),-60,60) ) )
+		-- end
 
 	--debugoverlay.Sphere(Hitpos, Radius, 10, Color(255,0,0,32), 1) --developer 1	in console to see
 
@@ -345,7 +360,7 @@ function ACF_Spall( HitPos , HitVec , Filter , KE , Caliber , _ , Inflictor , Ma
 		-- print("Cal: ".. Caliber)
 		-- print("Cal: ".. Cal_In_MM)
 
-		local Spall = math.min(math.floor(Caliber * ACF.KEtoSpall * SpallMul * 5) * ACF.SpallMult, Max_Spalls)
+		local Spall = math_min(math_floor(Caliber * ACF.KEtoSpall * SpallMul * 5) * ACF.SpallMult, Max_Spalls)
 		local TotalWeight = (Spall / (Cal_In_MM * (PI / 180)))
 		local SpallWeight = ((TotalWeight / (Spall / 10)) + (ArmorMul + WeightFactor))
 		local SpallVel = ((KE ^ Velocityfactor) / SpallWeight)
@@ -374,7 +389,7 @@ function ACF_Spall( HitPos , HitVec , Filter , KE , Caliber , _ , Inflictor , Ma
 
 			ACE.Spall[Index] = {}
 			ACE.Spall[Index].start  = HitPos
-			ACE.Spall[Index].endpos = HitPos + ( HitVec:GetNormalized() + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math.max( SpallVel / 8, 600 ) --Spall endtrace. Used to determine spread and the spall trace length. Only adjust the value in the max to determine the minimum distance spall will travel. 600 should be fine.
+			ACE.Spall[Index].endpos = HitPos + ( HitVec:GetNormalized() + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math_max( SpallVel / 8, 600 ) --Spall endtrace. Used to determine spread and the spall trace length. Only adjust the value in the max to determine the minimum distance spall will travel. 600 should be fine.
 			ACE.Spall[Index].filter = table.Copy(Filter)
 			ACE.Spall[Index].mins	= Vector(0,0,0)
 			ACE.Spall[Index].maxs	= Vector(0,0,0)
@@ -382,8 +397,8 @@ function ACF_Spall( HitPos , HitVec , Filter , KE , Caliber , _ , Inflictor , Ma
 			ACF_SpallTrace(HitVec, Index , SpallEnergy , SpallArea , Inflictor)
 
 			-- little sound optimization
-			if i < math.max(math.Round(Spall / 2), 1) then
-			 	sound.Play(ACE.Sounds["Penetrations"]["large"]["close"][math.random(1,#ACE.Sounds["Penetrations"]["large"]["close"])], HitPos, 75, 100, 0.5)
+			if i < math_max(math.Round(Spall / 2), 1) then
+			 	sound.Play(ACE.Sounds["Penetrations"]["large"]["close"][math_Random(1,#ACE.Sounds["Penetrations"]["large"]["close"])], HitPos, 75, 100, 0.5)
 			 end
 
 		end
@@ -424,7 +439,7 @@ function ACF_Spall_HESH( HitPos, HitVec, Filter, HEFiller, Caliber, Armour, Infl
 		-- print("Cal: ".. Caliber)
 		-- print("Cal: ".. Cal_In_MM)
 
-		local Spall = math.min(math.floor(Caliber * HEFiller * SpallMul * 5) * ACF.SpallMult, Max_Spalls)
+		local Spall = math_min(math_floor(Caliber * HEFiller * SpallMul * 5) * ACF.SpallMult, Max_Spalls)
 		local TotalWeight = (Spall / (Cal_In_MM * (PI / 180)))
 		local SpallWeight = ((TotalWeight / (Spall / 10)) + (ArmorMul + WeightFactor))
 		local SpallVel = ((HEFiller ^ Velocityfactor) / SpallWeight)
@@ -452,7 +467,7 @@ function ACF_Spall_HESH( HitPos, HitVec, Filter, HEFiller, Caliber, Armour, Infl
 
 			ACE.Spall[Index] = {}
 			ACE.Spall[Index].start  = HitPos
-			ACE.Spall[Index].endpos = HitPos + ( HitVec:GetNormalized() + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math.max( SpallVel / 8, 600 ) --Spall endtrace. Used to determine spread and the spall trace length. Only adjust the value in the max to determine the minimum distance spall will travel. 600 should be fine.
+			ACE.Spall[Index].endpos = HitPos + ( HitVec:GetNormalized() + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math_max( SpallVel / 8, 600 ) --Spall endtrace. Used to determine spread and the spall trace length. Only adjust the value in the max to determine the minimum distance spall will travel. 600 should be fine.
 			ACE.Spall[Index].filter = table.Copy(Filter)
 			ACE.Spall[Index].mins	= Vector(0,0,0)
 			ACE.Spall[Index].maxs	= Vector(0,0,0)
@@ -460,8 +475,8 @@ function ACF_Spall_HESH( HitPos, HitVec, Filter, HEFiller, Caliber, Armour, Infl
 			ACF_SpallTrace(HitVec, Index , SpallEnergy , SpallArea , Inflictor)
 
 			--little sound optimization
-			if i < math.max(math.Round(Spall / 2), 1) then
-				sound.Play(ACE.Sounds["Penetrations"]["large"]["close"][math.random(1,#ACE.Sounds["Penetrations"]["large"]["close"])], HitPos, 75, 100, 0.5)
+			if i < math_max(math.Round(Spall / 2), 1) then
+				sound.Play(ACE.Sounds["Penetrations"]["large"]["close"][math_Random(1,#ACE.Sounds["Penetrations"]["large"]["close"])], HitPos, 75, 100, 0.5)
 			end
 
 		end
@@ -474,7 +489,7 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor )
 
 	local Entity_Crit_Hit_Factor = 1.01
 
-	local SpallRes = util.TraceLine(ACE.Spall[Index])
+	local SpallRes = util_TraceLine(ACE.Spall[Index])
 
 	-- Check if spalling hit something
 	if SpallRes.Hit and ACF_Check( SpallRes.Entity ) then
@@ -485,7 +500,7 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor )
 
 			if IsValid(phys) and ACF_CheckClips( SpallRes.Entity, SpallRes.HitPos ) then
 
-				table.insert( ACE.Spall[Index].filter , SpallRes.Entity )
+				table_insert( ACE.Spall[Index].filter , SpallRes.Entity )
 
 				ACF_SpallTrace( SpallRes.StartPos , Index , SpallEnergy , SpallArea , Inflictor, Material )
 				return
@@ -518,7 +533,7 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor )
 			SpallEnergy.Penetration = (SpallEnergy.Penetration / Entity_Crit_Hit_Factor)
 		end
 		
-		SpallEnergy.Penetration = math.floor(SpallEnergy.Penetration)
+		SpallEnergy.Penetration = math_floor(SpallEnergy.Penetration)
 		
 		-- print(SpallEnergy.Penetration)
 
@@ -529,7 +544,7 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor )
 		if HitRes.Kill then
 			local Debris = ACF_APKill( SpallRes.Entity , HitVec:GetNormalized() , SpallEnergy.Kinetic )
 			if IsValid(Debris) then
-				table.insert( ACE.Spall[Index].filter , Debris )
+				table_insert( ACE.Spall[Index].filter , Debris )
 				ACF_SpallTrace( SpallRes.HitPos , Index , SpallEnergy , SpallArea , Inflictor, Material )
 			end
 		end
@@ -540,7 +555,7 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor )
 		-- The entity was penetrated --Disabled since penetration values are not real
 		if HitRes.Overkill > 0 then
 
-			table.insert( ACE.Spall[Index].filter , SpallRes.Entity )
+			table_insert( ACE.Spall[Index].filter , SpallRes.Entity )
 
 			-- Reduces the current SpallEnergy data for the next entity to hit
 			SpallEnergy.Penetration = SpallEnergy.Penetration * (1-HitRes.Loss)
@@ -593,23 +608,23 @@ function ACF_RoundImpact( Bullet, Speed, Energy, Target, HitPos, HitNormal , Bon
 	--Missiles are special. This should be dealt with guns only
 	if (IsValid(Bullet["Gun"]) and Bullet["Gun"]:GetClass() ~= "acf_missile" and Bullet["Gun"]:GetClass() ~= "ace_missile_swep_guided") or not IsValid(Bullet["Gun"]) then
 
-		local sigmoidCenter = Bullet.DetonatorAngle or ( (Bullet.Ricochet or 55) - math.max(Speed / 39.37 - (Bullet.LimitVel or 800),0) / 100 ) --Changed the abs to a min. Now having a bullet slower than normal won't increase chance to richochet.
+		local sigmoidCenter = Bullet.DetonatorAngle or ( (Bullet.Ricochet or 55) - math_max(Speed / 39.37 - (Bullet.LimitVel or 800),0) / 100 ) --Changed the abs to a min. Now having a bullet slower than normal won't increase chance to richochet.
 
 		--Guarenteed Richochet
 		if Angle > (Bullet.Ricochet or 85) then
 			ricoProb = 0
 
 		--Guarenteed to not richochet
-		elseif Bullet.Caliber * 3.33 > Target.ACF.Armour  then -- / math.max(math.sin(90-Angle),0.0001)
+		elseif Bullet.Caliber * 3.33 > Target.ACF.Armour  then -- / math_max(math.sin(90-Angle),0.0001)
 			ricoProb = 1
 
 		else
-			ricoProb = math.min(1-(math.max(Angle - sigmoidCenter,0) / sigmoidCenter * 4),1)
+			ricoProb = math_min(1-(math_max(Angle - sigmoidCenter,0) / sigmoidCenter * 4),1)
 		end
 	end
 
 	-- Checking for ricochet. The angle value is clamped but can cause game crashes if this overflow check doesnt exist. Why?
-	if ricoProb < math.Rand(0,1) and Angle < 90 then
+	if ricoProb < math_Rand(0,1) and Angle < 90 then
 		Ricochet	= math.Clamp( Angle / 90, 0.05, 0.2) -- atleast 5% of energy is kept, but no more than 20%
 		HitRes.Loss	= 1 - Ricochet
 		Energy.Kinetic = Energy.Kinetic * HitRes.Loss
@@ -617,7 +632,7 @@ function ACF_RoundImpact( Bullet, Speed, Energy, Target, HitPos, HitNormal , Bon
 
 	if HitRes.Kill then
 		local Debris = ACF_APKill( Target , (Bullet["Flight"]):GetNormalized() , Energy.Kinetic )
-		table.insert( Bullet["Filter"] , Debris )
+		table_insert( Bullet["Filter"] , Debris )
 	end
 
 	if Ricochet > 0 and Bullet.Ricochets < 5 and IsValid(Target) then
@@ -629,7 +644,7 @@ function ACF_RoundImpact( Bullet, Speed, Energy, Target, HitPos, HitNormal , Bon
 		Bullet.Flight	= (ACF_RicochetVector(Bullet.Flight, HitNormal) + VectorRand() * 0.05):GetNormalized() * Ricochet
 
 		if IsValid( ACF_GetPhysicalParent(Target):GetPhysicsObject() ) then
-			Bullet.TraceBackComp = math.max(ACF_GetPhysicalParent(Target):GetPhysicsObject():GetVelocity():Dot(Bullet["Flight"]:GetNormalized()),0)
+			Bullet.TraceBackComp = math_max(ACF_GetPhysicalParent(Target):GetPhysicsObject():GetVelocity():Dot(Bullet["Flight"]:GetNormalized()),0)
 		end
 
 		HitRes.Ricochet = true
@@ -653,7 +668,7 @@ function ACF_PenetrateGround( Bullet, Energy, HitPos, HitNormal )
 	local HitRes = {Penetrated = false, Ricochet = false}
 	local TROffset = 0.235 * Bullet.Caliber / 1.14142 --Square circumscribed by circle. 1.14142 is an aproximation of sqrt 2. Radius and divide by 2 for min/max cancel.
 
-	local DigRes = util.TraceHull( {
+	local DigRes = util_TraceHull( {
 
 		start = HitPos + Bullet.Flight:GetNormalized() * 0.1,
 		endpos = HitPos + Bullet.Flight:GetNormalized() * (MaxDig + 0.1),
@@ -664,9 +679,9 @@ function ACF_PenetrateGround( Bullet, Energy, HitPos, HitNormal )
 
 		} )
 
-	--debugoverlay.Box( DigRes.StartPos, Vector( -TROffset, -TROffset, -TROffset ), Vector( TROffset, TROffset, TROffset ), 5, Color(0,math.random(100,255),0) )
-	--debugoverlay.Box( DigRes.HitPos, Vector( -TROffset, -TROffset, -TROffset ), Vector( TROffset, TROffset, TROffset ), 5, Color(0,math.random(100,255),0) )
-	--debugoverlay.Line( DigRes.StartPos, HitPos + Bullet.Flight:GetNormalized() * (MaxDig + 0.1), 5 , Color(0,math.random(100,255),0) )
+	--debugoverlay.Box( DigRes.StartPos, Vector( -TROffset, -TROffset, -TROffset ), Vector( TROffset, TROffset, TROffset ), 5, Color(0,math_Random(100,255),0) )
+	--debugoverlay.Box( DigRes.HitPos, Vector( -TROffset, -TROffset, -TROffset ), Vector( TROffset, TROffset, TROffset ), 5, Color(0,math_Random(100,255),0) )
+	--debugoverlay.Line( DigRes.StartPos, HitPos + Bullet.Flight:GetNormalized() * (MaxDig + 0.1), 5 , Color(0,math_Random(100,255),0) )
 
 	local loss = DigRes.FractionLeftSolid
 
@@ -676,9 +691,9 @@ function ACF_PenetrateGround( Bullet, Energy, HitPos, HitNormal )
 		local Ricochet  = 0
 		local Speed	= Bullet.Flight:Length() / ACF.VelScale
 		local Angle	= ACF_GetHitAngle( HitNormal, Bullet.Flight )
-		local MinAngle  = math.min(Bullet.Ricochet - Speed / 39.37 / 30 + 20,89.9)  --Making the chance of a ricochet get higher as the speeds increase
+		local MinAngle  = math_min(Bullet.Ricochet - Speed / 39.37 / 30 + 20,89.9)  --Making the chance of a ricochet get higher as the speeds increase
 
-		if Angle > math.random(MinAngle,90) and Angle < 89.9 then	--Checking for ricochet
+		if Angle > math_Random(MinAngle,90) and Angle < 89.9 then	--Checking for ricochet
 			Ricochet = Angle / 90 * 0.75
 		end
 
@@ -784,7 +799,7 @@ local function ACF_KillChildProps( Entity, BlastPos, Energy )
 				-- remove this ent from children table and move it to the explosive table
 				if ACE.ExplosiveEnts[class] and not ent.Exploding then
 
-					table.insert( boom , ent )
+					table_insert( boom , ent )
 					children[ent] = nil
 
 					continue
@@ -798,14 +813,14 @@ local function ACF_KillChildProps( Entity, BlastPos, Energy )
 		-- HE kill the children of this ent, instead of disappearing them by removing parent
 		if count > 0 then
 
-			local power = Energy / math.min(count,3)
+			local power = Energy / math_min(count,3)
 
 			for _, child in pairs( children ) do --print('table children#2: ' .. table.Count( children ))
 
 				--Skip any invalid entity
 				if not IsValid(child) then continue end
 
-				local rand = math.random(0,100) / 100 --print(rand) print(ACF.DebrisChance)
+				local rand = math_Random(0,100) / 100 --print(rand) print(ACF.DebrisChance)
 
 				-- ignore some of the debris props to save lag
 				if rand > ACF.DebrisChance then continue end
@@ -866,8 +881,8 @@ function ACF_HEKill( Entity , HitVector , Energy , BlastPos )
 			Debris:Spawn()
 			Debris:Activate()
 
-			if math.random() < ACF.DebrisIgniteChance then
-				Debris:Ignite(math.Rand(5,45),0)
+			if math_Random() < ACF.DebrisIgniteChance then
+				Debris:Ignite(math_Rand(5,45),0)
 			end
 
 			-- Applies force to this debris
@@ -877,7 +892,7 @@ function ACF_HEKill( Entity , HitVector , Energy , BlastPos )
 
 			if IsValid(phys) and IsValid(physent) then
 				phys:SetDragCoefficient( 5 )
-				phys:SetMass( math.max(physent:GetMass() * 3,300) )
+				phys:SetMass( math_max(physent:GetMass() * 3,300) )
 				phys:SetVelocity( Parent:GetVelocity() )
 
 				if IsValid(Parent) then
@@ -931,7 +946,7 @@ function ACF_APKill( Entity , HitVector , Power )
 
 			if IsValid(phys) and IsValid(physent) then
 				phys:SetDragCoefficient( 15 )
-				phys:SetMass( math.max(physent:GetMass() * 3,300) )
+				phys:SetMass( math_max(physent:GetMass() * 3,300) )
 				phys:SetVelocity(Parent:GetVelocity() )
 				if IsValid(Parent) then
 					phys:SetVelocity( Parent:GetVelocity() )
@@ -972,7 +987,7 @@ do
 			local Capacity   = ent.Capacity  or 0
 			local Type       = ent.FuelType  or "Petrol"
 
-			HEWeight = ( math.min( Fuel, Capacity ) / ACF.FuelDensity[Type] ) * FuelExplosionScale
+			HEWeight = ( math_min( Fuel, Capacity ) / ACF.FuelDensity[Type] ) * FuelExplosionScale
 		else
 
 			local HE       = ent.BulletData.FillerMass	or 0
@@ -985,7 +1000,7 @@ do
 		local Radius    = ACE_CalculateHERadius( HEWeight )
 		local Pos       = ent:LocalToWorld(ent:OBBCenter())
 
-		table.insert(ExplodePos, Pos)
+		table_insert(ExplodePos, Pos)
 
 		local LastHE = 0
 		local Search = true
@@ -1018,16 +1033,16 @@ do
 						Occlusion.start   = Pos
 						Occlusion.endpos  = Hitat + (Hitat-Pos):GetNormalized() * 100
 						Occlusion.filter  = Filter
-					local Occ = util.TraceLine( Occlusion )
+					local Occ = util_TraceLine( Occlusion )
 
 					--Filters any ent which blocks the trace.
 					if Occ.Fraction == 0 then
 
-						table.insert(Filter,Occ.Entity)
+						table_insert(Filter,Occ.Entity)
 
 						Occlusion.filter	= Filter
 
-						Occ = util.TraceLine( Occlusion )
+						Occ = util_TraceLine( Occlusion )
 
 					end
 
@@ -1041,7 +1056,7 @@ do
 							local Capacity   = Found.Capacity or 0
 							local Type       = Found.FuelType or "Petrol"
 
-							FoundHEWeight = ( math.min( Fuel, Capacity ) / ACF.FuelDensity[Type] ) * FuelExplosionScale
+							FoundHEWeight = ( math_min( Fuel, Capacity ) / ACF.FuelDensity[Type] ) * FuelExplosionScale
 						else
 
 							if Found.RoundType == "Refill" then Found:Remove() continue end
@@ -1053,7 +1068,7 @@ do
 							FoundHEWeight = ( ( HE + Propel * ( ACF.PBase / ACF.HEPower)) * Ammo ) * AmmoExplosionScale
 						end
 
-						table.insert( ExplodePos, Found:LocalToWorld(Found:OBBCenter()) )
+						table_insert( ExplodePos, Found:LocalToWorld(Found:OBBCenter()) )
 
 						HEWeight = HEWeight + FoundHEWeight
 
@@ -1062,7 +1077,7 @@ do
 						Found.KillAction    = false
 						Found.Exploding     = true
 
-						table.insert( Filter,Found )
+						table_insert( Filter,Found )
 						table.remove( CExplosives,i )
 						Found:Remove()
 					else
@@ -1107,7 +1122,7 @@ do
 				Flash:SetAttachment( 1 )
 				Flash:SetOrigin( AvgPos )
 				Flash:SetNormal( -vector_up )
-				Flash:SetRadius( math.max( Radius , 1 ) )
+				Flash:SetRadius( math_max( Radius , 1 ) )
 			util.Effect( "ACF_Scaled_Explosion", Flash )
 		end )
 
@@ -1118,7 +1133,7 @@ end
 function ACF_GetHitAngle( HitNormal , HitVector )
 
 	HitVector = HitVector * -1
-	local Angle = math.min(math.deg(math.acos(HitNormal:Dot( HitVector:GetNormalized() ) ) ),89.999 )
+	local Angle = math_min(math.deg(math.acos(HitNormal:Dot( HitVector:GetNormalized() ) ) ),89.999 )
 	--print("Angle : " ..Angle.. "\n")
 	return Angle
 
