@@ -65,6 +65,10 @@ do
 	--If the Origin is a vector Position, uses sound.Play(SoundTxt, Position, SoundLevel, Pitch, Volume)
 	function ACE_EmitSound( SoundTxt, Origin, SoundLevel, Pitch, Volume )
 
+		if not SoundTxt then
+			return
+		end -- КАКИЕ ЖЕ ВЫ ДОЛБАЕБЫ
+
 		Volume = math.min( Volume, 1 )
 		local VolumeConfig = GetConVar("acf_sound_volume"):GetInt() / 100
 
