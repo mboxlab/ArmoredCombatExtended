@@ -402,6 +402,8 @@ end
 
 function PANEL:PerformLayout()
 
+	acfmenupanel:SetTall( g_SpawnMenu.CreateMenu:GetTall() - 64 - 16 )
+
 	--Starting positions
 	local vspacing = 10
 	local ypos = 0
