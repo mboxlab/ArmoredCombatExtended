@@ -324,7 +324,7 @@ function ENT:Think()
 		--------------------------
 
 		--CT > self.TimeOfLaunch + self.MinArmingDelay
-		if not self.CanDetonate and (self.Fuse:IsArmed() or CT > self.ActivationTime + self.Lifetime) then
+		if not self.CanDetonate and (self.Fuse and self.Fuse:IsArmed() or CT > self.ActivationTime + self.Lifetime) then
 			self.CanDetonate = true
 		end
 
