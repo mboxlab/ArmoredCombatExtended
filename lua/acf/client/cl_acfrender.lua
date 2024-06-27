@@ -9,26 +9,36 @@ do
 		CreateMaterial("ACF_Damaged3", "VertexLitGeneric", {["$basetexture"] = "damaged/damaged3"})
 	}
 
-	hook.Add("PostDrawOpaqueRenderables", "ACF_RenderDamage", function()
-		if not ACF_HealthRenderList then return end
+	do
+		local pairs = pairs
+		local IsValid = IsValid
+		local Start3D, End3D = cam.Start3D, cam.End3D
+		local ModelMaterialOverride = render.ModelMaterialOverride
+		local SetBlend, Clamp = render.SetBlend, math.Clamp
 
-		cam.Start3D( EyePos(), EyeAngles() )
+		hook.Add("PostDrawOpaqueRenderables", "ACF_RenderDamage", function()
+			if not ACF_HealthRenderList then return end
 
-			for k,ent in pairs( ACF_HealthRenderList ) do
-				if not IsValid(ent) then
-					ACF_HealthRenderList[k] = nil
-					continue
+			Start3D( EyePos(), EyeAngles() )
+				for k, ent in pairs( ACF_HealthRenderList ) do
+					if not IsValid( ent ) then
+						ACF_HealthRenderList[ k ] = nil
+						continue
+					end
+
+					if ent:IsDormant() then continue end
+
+					ModelMaterialOverride( ent.ACF_Material )
+					SetBlend( Clamp( 1 - ent.ACF_HealthPercent, 0, 0.8 ) )
+
+					ent:DrawModel()
 				end
 
-				render.ModelMaterialOverride( ent.ACF_Material )
-				render.SetBlend( math.Clamp( 1 - ent.ACF_HealthPercent,0,0.8) )
-				ent:DrawModel()
-
-			end
-			render.ModelMaterialOverride()
-			render.SetBlend(1)
-		cam.End3D()
-	end)
+				ModelMaterialOverride()
+				SetBlend(1)
+			End3D()
+		end)
+	end
 
 	net.Receive("ACF_RenderDamage", function()
 
