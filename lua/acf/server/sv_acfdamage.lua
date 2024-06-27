@@ -12,6 +12,9 @@ local WorldToLocal = WorldToLocal
 local ang0 = Angle(0,0,0)
 local math_Rand = math.Rand
 local math_Random = math.random
+local hugenumber = math.huge
+local vec_Distance = FindMetaTable("Vector").Distance
+local ents_FindInSphere = ents.FindInSphere
 
 -- This file is meant for the advanced damage functions used by the Armored Combat Framework
 ACE.Spall		= {}
@@ -47,14 +50,14 @@ ACE.CritEnts = {
 	prop_vehicle_prisoner_pod  = true,
 	gmod_wire_gate             = true
 }
-
+local ACF_HEFilter = ACF.HEFilter
 --I don't want HE processing every ent that it has in range
 function ACF_HEFind( Hitpos, Radius )
 
 	local Table = {}
-	for _, ent in pairs( ents.FindInSphere( Hitpos, Radius ) ) do
+	for _, ent in pairs( ents_FindInSphere( Hitpos, Radius ) ) do
 		--skip any undesired ent
-		if ACF.HEFilter[ent:GetClass()] then continue end
+		if ACF_HEFilter[ent:GetClass()] then continue end
 		if not ent:IsSolid() then continue end
 
 		table_insert( Table, ent )
@@ -130,11 +133,9 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 					--Done for dealing damage vs players and npcs
 					if Type == "Squishy" then
 
-						local hugenumber = 99999999999
-
 						--Modified to attack the feet, center, or eyes, whichever is closest to the explosion
 						--This is for scanning potential victims, damage goes later.
-						local cldist = Hitpos:Distance( Hitat ) or hugenumber
+						local cldist = vec_Distance(Hitpos, Hitat) or hugenumber
 						local Tpos
 						local Tdis = hugenumber
 
@@ -145,7 +146,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 							if Eyeat then
 								--Msg("Hitting Eyes\n")
 								Tpos = Eyeat.Pos
-								Tdis = Hitpos:Distance( Tpos ) or hugenumber
+								Tdis = vec_Distance(Hitpos, Tpos) or hugenumber
 								if Tdis < cldist then
 									Hitat = Tpos
 									cldist = cldist
@@ -154,7 +155,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 						end
 
 						Tpos = TargetCenter
-						Tdis = Hitpos:Distance( Tpos ) or hugenumber
+						Tdis = vec_Distance(Hitpos, Tpos) or hugenumber
 						if Tdis < cldist then
 							Hitat = Tpos
 							cldist = cldist
@@ -180,7 +181,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 						Table.LocalHitpos = WorldToLocal(Hitpos, ang0, TargetPos, Tar:GetAngles())
 					end
 
-					Table.Dist		= Hitpos:Distance(TargetPos)
+					Table.Dist		= vec_Distance(Hitpos, TargetPos)
 					Table.Vec		= (TargetPos - Hitpos):GetNormalized()
 
 					local Sphere		= math_max(4 * PI * (Table.Dist * 2.54 ) ^ 2,1) --Surface Area of the sphere at the range of that prop
