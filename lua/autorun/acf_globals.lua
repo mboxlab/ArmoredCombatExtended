@@ -147,7 +147,9 @@ ACF.SpallMult = 1
 
 ACF.MissileVelocityMul = 3 -- Multiplier for missile shell velocity on detonation. Useful for kinetic missiles.
 
--- Math in globals????
+if CLIENT then
+	ACF.KillIconColor	= Color(200, 200, 48)
+end
 
 -- UNLESS YOU WANT SPALL TO FLY BACKWARDS, BE ABSOLUTELY SURE TO MAKE SURE THIS VECTOR LENGTH IS LESS THAN 1
 -- The vector controls the spread pattern. The multiplier adjusts the tightness of the spread cone. ABSOLUTELY DO NOT MAKE THE MULTIPLIER MORE THAN 1. A Vector of 1,1,0.5. Results in half the vertical spall spread
