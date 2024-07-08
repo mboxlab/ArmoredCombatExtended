@@ -15,9 +15,9 @@ do
 		local Start3D, End3D = cam.Start3D, cam.End3D
 		local ModelMaterialOverride = render.ModelMaterialOverride
 		local SetBlend, Clamp = render.SetBlend, math.Clamp
-
+		local next = next
 		hook.Add("PostDrawOpaqueRenderables", "ACF_RenderDamage", function()
-			if not ACF_HealthRenderList then return end
+			if not next(ACF_HealthRenderList) then return end
 
 			Start3D( EyePos(), EyeAngles() )
 				for k, ent in pairs( ACF_HealthRenderList ) do
