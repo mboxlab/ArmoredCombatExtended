@@ -1,6 +1,9 @@
 local math_min = math.min
 local math_max = math.max
 local math_floor = math.floor
+local math_Round = math.Round
+local math_Clamp = math.Clamp
+local table_Copy = table.Copy
 local ACF, ACE = ACF, ACE
 local istable = istable
 local ipairs = ipairs
@@ -318,7 +321,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 
 		-- 	PlayerDist = math_max(PlayerDist,13949) --Will never go below 3 meters.
 
-		-- 	Tar:ViewPunch( Angle( math.Clamp(RelAngle.pitch * Amp * -120000 / PlayerDist * math_Rand(0.5,1),-60,60), math.Clamp( RelAngle.yaw * Amp * -100000 / PlayerDist * math_Rand(0.5,1),-60,60), math.Clamp( RelAngle.yaw * Amp * 50000 / PlayerDist * math_Rand(0.5,1),-60,60) ) )
+		-- 	Tar:ViewPunch( Angle( math_Clamp(RelAngle.pitch * Amp * -120000 / PlayerDist * math_Rand(0.5,1),-60,60), math_Clamp( RelAngle.yaw * Amp * -100000 / PlayerDist * math_Rand(0.5,1),-60,60), math_Clamp( RelAngle.yaw * Amp * 50000 / PlayerDist * math_Rand(0.5,1),-60,60) ) )
 		-- end
 
 	--debugoverlay.Sphere(Hitpos, Radius, 10, Color(255,0,0,32), 1) --developer 1	in console to see
@@ -388,17 +391,18 @@ function ACF_Spall( HitPos , HitVec , Filter , KE , Caliber , _ , Inflictor , Ma
 			-- Normal Trace creation
 			local Index = ACE.CurSpallIndex
 
-			ACE.Spall[Index] = {}
-			ACE.Spall[Index].start  = HitPos
-			ACE.Spall[Index].endpos = HitPos + ( HitVec:GetNormalized() + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math_max( SpallVel / 8, 600 ) --Spall endtrace. Used to determine spread and the spall trace length. Only adjust the value in the max to determine the minimum distance spall will travel. 600 should be fine.
-			ACE.Spall[Index].filter = table.Copy(Filter)
-			ACE.Spall[Index].mins	= Vector(0,0,0)
-			ACE.Spall[Index].maxs	= Vector(0,0,0)
+			local obj = {}
+			ACE.Spall[Index] = obj
+			obj.start  = HitPos
+			obj.endpos = HitPos + ( HitVec:GetNormalized() + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math_max( SpallVel / 8, 600 ) --Spall endtrace. Used to determine spread and the spall trace length. Only adjust the value in the max to determine the minimum distance spall will travel. 600 should be fine.
+			obj.filter = table_Copy(Filter)
+			obj.mins	= Vector(0,0,0)
+			obj.maxs	= Vector(0,0,0)
 
 			ACF_SpallTrace(HitVec, Index , SpallEnergy , SpallArea , Inflictor, SpallVel)
 
 			-- little sound optimization
-			if i < math_max(math.Round(Spall / 2), 1) then
+			if i < math_max(math_Round(Spall / 2), 1) then
 			 	sound.Play(ACE.Sounds["Penetrations"]["large"]["close"][math_Random(1,#ACE.Sounds["Penetrations"]["large"]["close"])], HitPos, 75, 100, 0.5)
 			 end
 
@@ -443,19 +447,19 @@ function ACF_PropShockwave( HitPos, HitVec, Filter, Caliber )
 		--In case of total failure, this loop is limited to 1000 iterations, don't make me increase it even more.
 		if iteration >= 1000 then FindEnd = false end
 		--================-TRACEFRONT-==================-
-		local tracefront = util.TraceHull( TrFront )
+		local tracefront = util_TraceHull( TrFront )
 		--insert the hitpos here
 		local HitFront = tracefront.HitPos
-		table.insert( HitFronts, HitFront )
+		table_insert( HitFronts, HitFront )
 		--distance between the initial hit and hitpos of front plate
 		local distToFront = math.abs( (HitPos - HitFront):Length() )
-		table.insert( FrontDists, distToFront)
+		table_insert( FrontDists, distToFront)
 		--TraceFront's armor entity
 		local Armour = tracefront.Entity.ACF and tracefront.Entity.ACF.Armour or 0
 		--Code executed once its scanning the 2nd prop
 		if iteration > 1 then
 			--check if they are totally overlapped
-			if math.Round(FrontDists[iteration-1]) ~= math.Round(FrontDists[iteration] ) then
+			if math_Round(FrontDists[iteration-1]) ~= math_Round(FrontDists[iteration] ) then
 				--distance between the start of ent1 and end of ent2
 				local space = math.abs( (HitFronts[iteration] - HitBacks[iteration - 1]):Length() )
 				--prop's material
@@ -486,21 +490,21 @@ function ACF_PropShockwave( HitPos, HitVec, Filter, Caliber )
 				end
 			end
 			--start inserting new ents to the table when iteration pass 1, so we don't insert the already inserted prop (first one)
-			table.insert( EntsToHit, tracefront.Entity)
+			table_insert( EntsToHit, tracefront.Entity)
 		end
 		--Filter this ent from being processed again in the next checks
-		table.insert( TrFront.filter, tracefront.Entity )
+		table_insert( TrFront.filter, tracefront.Entity )
 		--Add the armor value to table
-		table.insert( TotalArmor, Armour )
+		table_insert( TotalArmor, Armour )
 		--================-TRACEBACK-==================
-		local traceback = util.TraceHull( TrBack )
+		local traceback = util_TraceHull( TrBack )
 		--insert the hitpos here
 		local HitBack = traceback.HitPos
-		table.insert( HitBacks, HitBack )
+		table_insert( HitBacks, HitBack )
 		--store the dist between the backhit and the hitvec
 		local distToBack = math.abs( (HitPos - HitBack):Length() )
-		table.insert( BackDists, distToBack)
-		table.insert( Normals, traceback.HitNormal )
+		table_insert( BackDists, distToBack)
+		table_insert( Normals, traceback.HitNormal )
 		--flag this iteration as lost
 		if not tracefront.Hit then
 			--print("[ACE|WARN]- TRACE HAS BROKEN!")
@@ -591,15 +595,16 @@ function ACF_Spall_HESH( HitPos, HitVec, Filter, HEFiller, Caliber, Armour, Infl
 			-- Normal Trace creation
 			local Index = ACE.CurSpallIndex
 			
-			ACE.Spall[Index]			= {}
-			ACE.Spall[Index].start	= HitPos
-			ACE.Spall[Index].endpos	= HitPos + ((fNormal * 2500 + HitVec):GetNormalized() + VectorRand() / 3):GetNormalized() * math.max( SpallVel / 8, 600) --I got bored of spall not going across the tank
-			ACE.Spall[Index].filter	= table.Copy(Temp_Filter)
+			local obj = {}
+			ACE.Spall[Index] = obj
+			obj.start	= HitPos
+			obj.endpos	= HitPos + ((fNormal * 2500 + HitVec):GetNormalized() + VectorRand() / 3):GetNormalized() * math_max( SpallVel / 8, 600) --I got bored of spall not going across the tank
+			obj.filter	= table_Copy(Temp_Filter)
 			
 			ACF_SpallTrace(HitVec, Index , SpallEnergy , SpallArea , Inflictor, SpallVel)
 
 			--little sound optimization
-			if i < math_max(math.Round(Spall / 2), 1) then
+			if i < math_max(math_Round(Spall / 2), 1) then
 				sound.Play(ACE.Sounds["Penetrations"]["large"]["close"][math_Random(1,#ACE.Sounds["Penetrations"]["large"]["close"])], HitPos, 75, 100, 0.5)
 			end
 
@@ -625,15 +630,16 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor, SpallV
 
 			if IsValid(phys) and ACF_CheckClips( SpallRes.Entity, SpallRes.HitPos ) then
 
-				local Temp_Filter = table.Copy(ACE.Spall[Index].filter)
+				local Temp_Filter = table_Copy(ACE.Spall[Index].filter)
 				table_insert( Temp_Filter , SpallRes.Entity )
 
-				ACE.Spall[Index] = {}
-				ACE.Spall[Index].start  = SpallRes.HitPos
-				ACE.Spall[Index].endpos = SpallRes.HitPos + ( SpallRes.HitNormal + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math.max( SpallVelocity / 8, 600)
-				ACE.Spall[Index].filter = Temp_Filter
-				ACE.Spall[Index].mins	= Vector(0,0,0)
-				ACE.Spall[Index].maxs	= Vector(0,0,0)
+				local obj = {}
+				ACE.Spall[Index] = obj
+				obj.start  = SpallRes.HitPos
+				obj.endpos = SpallRes.HitPos + ( SpallRes.HitNormal + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math_max( SpallVelocity / 8, 600)
+				obj.filter = Temp_Filter
+				obj.mins	= Vector(0,0,0)
+				obj.maxs	= Vector(0,0,0)
 			
 				ACF_SpallTrace( SpallRes.HitPos , Index , SpallEnergy , SpallArea , Inflictor, SpallVelocity )
 				return
@@ -657,8 +663,8 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor, SpallV
 		-- 1. Ceramic/textolite are extremely brittle and once hit usually shatters, if you overthink it then the spall would be like blades of grass cutting through sand.
 		-- 2. It is extremely easy to overtweak the resistence as setting it even to 2 means the penetration will be lost within seconds due to the interval this script runs at.
 		-- 3. Regarding 2. This is for all materials. I have carefully selected the resistences for them.
-		local Final_Spall_Resistence = math.Clamp(spall_resistance, 1, 999)
-		Entity_Crit_Hit_Factor = math.Clamp(Entity_Crit_Hit_Factor, 1, 999)
+		local Final_Spall_Resistence = math_Clamp(spall_resistance, 1, 999)
+		Entity_Crit_Hit_Factor = math_Clamp(Entity_Crit_Hit_Factor, 1, 999)
 
 		SpallEnergy.Penetration = (SpallEnergy.Penetration / Final_Spall_Resistence)
 
@@ -689,17 +695,18 @@ function ACF_SpallTrace(HitVec, Index, SpallEnergy, SpallArea, Inflictor, SpallV
 		-- The entity was penetrated --Disabled since penetration values are not real
 		if HitRes.Overkill > 0 then
 
-			local Temp_Filter = table.Copy(ACE.Spall[Index].filter)
+			local Temp_Filter = table_Copy(ACE.Spall[Index].filter)
 			table_insert( Temp_Filter , SpallRes.Entity )
 				
-			ACE.Spall[Index] = {}
-			ACE.Spall[Index].start  = SpallRes.HitPos
-			ACE.Spall[Index].endpos = SpallRes.HitPos + ( SpallRes.HitNormal + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math.max( SpallVelocity / 8, 600)
-			ACE.Spall[Index].filter = Temp_Filter
-			ACE.Spall[Index].mins	= Vector(0,0,0)
-			ACE.Spall[Index].maxs	= Vector(0,0,0)
+			local obj = {}
+			ACE.Spall[Index] = obj
+			obj.start  = SpallRes.HitPos
+			obj.endpos = SpallRes.HitPos + ( SpallRes.HitNormal + VectorRand() * ACF.SpallingDistribution ):GetNormalized() * math_max( SpallVelocity / 8, 600)
+			obj.filter = Temp_Filter
+			obj.mins	= Vector(0,0,0)
+			obj.maxs	= Vector(0,0,0)
 			
-			SpallRes = util.TraceLine(ACE.Spall[Index])
+			SpallRes = util.TraceLine(obj)
 
 			debugoverlay.Line( SpallRes.StartPos, SpallRes.HitPos, 30 , Color(0,0,255), true )
 			-- Blue trace means spall trace that overpenned and killed something.
@@ -767,7 +774,7 @@ function ACF_RoundImpact( Bullet, Speed, Energy, Target, HitPos, HitNormal , Bon
 
 	-- Checking for ricochet. The angle value is clamped but can cause game crashes if this overflow check doesnt exist. Why?
 	if ricoProb < math_Rand(0,1) and Angle < 90 then
-		Ricochet	= math.Clamp( Angle / 90, 0.05, 0.2) -- atleast 5% of energy is kept, but no more than 20%
+		Ricochet	= math_Clamp( Angle / 90, 0.05, 0.2) -- atleast 5% of energy is kept, but no more than 20%
 		HitRes.Loss	= 1 - Ricochet
 		Energy.Kinetic = Energy.Kinetic * HitRes.Loss
 	end
@@ -990,8 +997,9 @@ local function ACF_KillChildProps( Entity, BlastPos, Energy )
 end
 
 -- Remove the entity
+local constraint_RemoveAll = constraint.RemoveAll
 local function RemoveEntity( Entity )
-	constraint.RemoveAll( Entity )
+	constraint_RemoveAll( Entity )
 	Entity:Remove()
 end
 

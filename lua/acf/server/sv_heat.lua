@@ -97,6 +97,19 @@ end
 	Engine - The Engine Entity
 
 ]]---------------------------------------------------------------------------------------
+
+local fueltypes = {
+	Diesel = {90000, 1},
+	Petrol = {100000, 60},
+	Electric = {60000, 5},
+	Multifuel = {100000, 55},
+}
+
+local enginetypes = {
+	Radial = {100000, 60},
+	Turbine = {30000, 350},
+}
+
 function ACE_HeatFromEngine( Engine )
 
 	--bullshiet code below, better using tables next time
@@ -113,50 +126,14 @@ function ACE_HeatFromEngine( Engine )
 		local RPM  = Engine.FlyRPM  --> RPM of said engin
 		local Heat = 0			--> Heat from engine
 
-		---Highly uneffective code below. Guaranteed to get cancer once you read this---
-
-		--Diesel Engines are cooler tbh
-		if Engine.FuelType == "Diesel" then
-			--print("Diesel Engine")
-			Heat = RPM / 90000
-			ExTemp = 50
-
-		--Petrol Engines are oof of heat
-		elseif Engine.FuelType == "Petrol" then
-			--print("Petrol Engine")
-			Heat = RPM / 100000
-			ExTemp = 60
-
-		--Electric engines are more efficient, so they will make less heat than oil based engines
-		elseif Engine.FuelType == "Electric" then
-			--print("Electric Engine")
-			Heat = RPM / 60000
-			ExTemp = 5
-
-		--completely messy code, i hate it. ACF3 will cover this better
-		elseif Engine.FuelType == "Multifuel" then
-			--print("MultiFuel Category")
-
-			--Ground Gas turbines. This is going crazy at this point
-			if Engine.EngineType == "Radial" then
-				--print("Ground Gas Turbine")
-				Heat = RPM / 100000
-				ExTemp = 60
-
-			--Aero-turbines. deal with that temperature. AGT 1500 is cooler though
-			elseif Engine.EngineType == "Turbine" then
-				--print("Aero Turbine")
-				Heat = RPM / 30000
-				ExTemp = 350
-
-			--Any multifuel Engine that is not a gas turbine.
-			--Since they can use both petrol or diesel that i´ll leave a average of them
-			else
-				--print("MutiFuel Engine")
-				Heat = RPM / 100000
-				ExTemp = 55
-
-			end
+		if Engine.FuelType == "Multifuel" then
+			local t = enginetypes[Engine.EngineType]
+			Heat = RPM / t[1]
+			ExTemp = t[2]
+		else
+			local t = fueltypes[Engine.FuelType]
+			Heat = RPM / t[1]
+			ExTemp = t[2]
 		end
 
 		Temp = Temp + Heat
