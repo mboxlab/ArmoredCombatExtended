@@ -1,6 +1,6 @@
 -- visual concept: Here's where should be every acf function
 do
-	local SendDelay = 1 -- in miliseconds
+	local SendDelay = 100 -- in miliseconds
 	local RenderProps = {Entities = {}, Clock = 0}
 	local table_insert = table.insert
 	local table_remove = table.remove
