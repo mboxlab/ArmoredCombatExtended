@@ -2,9 +2,11 @@
 do
 	local SendDelay = 1 -- in miliseconds
 	local RenderProps = {Entities = {}, Clock = 0}
+	local table_insert = table.insert
+	local table_remove = table.remove
 	function ACF_UpdateVisualHealth(Entity)
 		if not Entity.ACF.OnRenderQueue then
-			table.insert(RenderProps.Entities, Entity)
+			table_insert(RenderProps.Entities, Entity)
 			Entity.ACF.OnRenderQueue = true
 		end
 	end
@@ -12,21 +14,26 @@ do
 
 		local Time = CurTime()
 
-		if next(RenderProps.Entities) and Time >= RenderProps.Clock then
+		if RenderProps.Entities[1] and Time >= RenderProps.Clock then
 
-			for k, Ent in ipairs(RenderProps.Entities) do if not Ent:IsValid() then table.remove(RenderProps.Entities, k) end end
+			for k, Ent in ipairs(RenderProps.Entities) do
+				if not Ent:IsValid() then
+					table_remove(RenderProps.Entities, k)
+				end
+			end
 
 			local Entity = RenderProps.Entities[1]
 			if IsValid(Entity) then
+				local Entity_ACF = Entity.ACF
+				
 				net.Start("ACF_RenderDamage", true) -- i dont care if the message is not received under extreme cases since its simply a visual effect only.
-				net.WriteUInt(Entity:EntIndex(), 13)
-				net.WriteFloat(Entity.ACF.MaxHealth)
-				net.WriteFloat(Entity.ACF.Health)
+				net.WriteEntity(Entity)
+				net.WriteUInt((Entity_ACF.Health / Entity_ACF.MaxHealth) * 255, 8)
 				net.Broadcast()
 
-				Entity.ACF.OnRenderQueue = nil
+				Entity_ACF.OnRenderQueue = nil
 			end
-			table.remove(RenderProps.Entities, 1)
+			table_remove(RenderProps.Entities, 1)
 
 			RenderProps.Clock = Time + (SendDelay / 1000)
 		end
@@ -49,13 +56,19 @@ function ACF_Activate(Entity, Recalc)
 	local PhysObj = Entity:GetPhysicsObject()
 	Entity.ACF.PhysObj = PhysObj
 
-	if PhysObj:GetMesh() then Count = #PhysObj:GetMesh() end
+	if PhysObj:GetMesh() then
+		Count = #PhysObj:GetMesh()
+	end
 	if PhysObj:IsValid() and Count and Count > 100 then
 
-		if not Entity.ACF.Area then Entity.ACF.Area = (PhysObj:GetSurfaceArea() * 6.45) * 0.52505066107 end
+		if not Entity.ACF.Area then
+			Entity.ACF.Area = (PhysObj:GetSurfaceArea() * 6.45) * 0.52505066107
+		end
 	else
 		local Size = Entity.OBBMaxs(Entity) - Entity.OBBMins(Entity)
-		if not Entity.ACF.Area then Entity.ACF.Area = ((Size.x * Size.y) + (Size.x * Size.z) + (Size.y * Size.z)) * 6.45 end
+		if not Entity.ACF.Area then
+			Entity.ACF.Area = ((Size.x * Size.y) + (Size.x * Size.z) + (Size.y * Size.z)) * 6.45
+		end
 	end
 
 	-- Setting Armor properties for the first time (or reuse old data if present)
@@ -75,7 +88,9 @@ function ACF_Activate(Entity, Recalc)
 
 	local Percent = 1
 
-	if Recalc and Entity.ACF.Health and Entity.ACF.MaxHealth then Percent = Entity.ACF.Health / Entity.ACF.MaxHealth end
+	if Recalc and Entity.ACF.Health and Entity.ACF.MaxHealth then
+		Percent = Entity.ACF.Health / Entity.ACF.MaxHealth
+	end
 
 	Entity.ACF.Health = Health * Percent
 	Entity.ACF.MaxHealth = Health
@@ -95,13 +110,19 @@ end
 
 function ACF_Check(Entity)
 
-	if not IsValid(Entity) then return false end
+	if not IsValid(Entity) then
+		return false
+	end
 
 	local physobj = Entity:GetPhysicsObject()
-	if not (physobj:IsValid() and (physobj:GetMass() or 0) > 0 and not Entity:IsWorld() and not Entity:IsWeapon()) then return false end
+	if not (physobj:IsValid() and (physobj:GetMass() or 0) > 0 and not Entity:IsWorld() and not Entity:IsWeapon()) then
+		return false
+	end
 
 	local Class = Entity:GetClass()
-	if (Class == "gmod_ghost" or Class == "ace_debris" or Class == "prop_ragdoll" or string.find(Class, "func_")) then return false end
+	if (Class == "gmod_ghost" or Class == "ace_debris" or Class == "prop_ragdoll" or string.find(Class, "func_")) then
+		return false
+	end
 
 	if not Entity.ACF or (Entity.ACF and isnumber(Entity.ACF.Material)) then
 		ACF_Activate(Entity)
@@ -206,12 +227,16 @@ function ACF_PropDamage(Entity, Energy, FrArea, Angle, _, _, Type)
 	else
 
 		-- In case of HitRes becomes NAN. That means theres no damage, so leave it as 0
-		if HitRes.Damage ~= HitRes.Damage then HitRes.Damage = 0 end
+		if HitRes.Damage ~= HitRes.Damage then
+			HitRes.Damage = 0
+		end
 
 		Entity.ACF.Health = Entity.ACF.Health - HitRes.Damage
 		Entity.ACF.Armour = Entity.ACF.MaxArmour * (0.5 + Entity.ACF.Health / Entity.ACF.MaxHealth / 2) -- Simulating the plate weakening after a hit
 
-		if Entity.ACF.PrHealth then ACF_UpdateVisualHealth(Entity) end
+		if Entity.ACF.PrHealth then
+			ACF_UpdateVisualHealth(Entity)
+		end
 		Entity.ACF.PrHealth = Entity.ACF.Health
 	end
 
@@ -227,7 +252,9 @@ function ACF_VehicleDamage(Entity, Energy, FrArea, Angle, Inflictor, _, Gun, Typ
 	local validd = Driver:IsValid()
 
 	-- In case of HitRes becomes NAN. That means theres no damage, so leave it as 0
-	if HitRes.Damage ~= HitRes.Damage then HitRes.Damage = 0 end
+	if HitRes.Damage ~= HitRes.Damage then
+		HitRes.Damage = 0
+	end
 
 	if validd then
 		local dmg = 40
@@ -236,7 +263,9 @@ function ACF_VehicleDamage(Entity, Energy, FrArea, Angle, Inflictor, _, Gun, Typ
 
 	HitRes.Kill = false
 	if HitRes.Damage >= Entity.ACF.Health then -- Drivers will no longer survive seat destruction
-		if validd then Driver:Kill() end
+		if validd then
+			Driver:Kill()
+		end
 		HitRes.Kill = true
 	else
 		Entity.ACF.Health = Entity.ACF.Health - HitRes.Damage
@@ -333,8 +362,12 @@ function ACF_GetAllPhysicalConstraints(ent, ResultTable)
 
 	ResultTable = ResultTable or {}
 
-	if not IsValid(ent) then return end
-	if ResultTable[ent] then return end
+	if not IsValid(ent) then
+		return
+	end
+	if ResultTable[ent] then
+		return
+	end
 
 	ResultTable[ent] = ent
 
@@ -343,7 +376,11 @@ function ACF_GetAllPhysicalConstraints(ent, ResultTable)
 	for _, con in ipairs(ConTable) do
 
 		-- skip shit that is attached by a nocollide
-		if con.Type ~= "NoCollide" then for _, Ent in pairs(con.Entity) do ACF_GetAllPhysicalConstraints(Ent.Entity, ResultTable) end end
+		if con.Type ~= "NoCollide" then
+			for _, Ent in pairs(con.Entity) do
+				ACF_GetAllPhysicalConstraints(Ent.Entity, ResultTable)
+			end
+		end
 
 	end
 
@@ -358,14 +395,20 @@ function ACF_GetAllChildren(ent, ResultTable)
 
 	ResultTable = ResultTable or {}
 
-	if not IsValid(ent) then return end
-	if ResultTable[ent] then return end
+	if not IsValid(ent) then
+		return
+	end
+	if ResultTable[ent] then
+		return
+	end
 
 	ResultTable[ent] = ent
 
 	local ChildTable = ent:GetChildren()
 
-	for _, v in pairs(ChildTable) do ACF_GetAllChildren(v, ResultTable) end
+	for _, v in pairs(ChildTable) do
+		ACF_GetAllChildren(v, ResultTable)
+	end
 
 	return ResultTable
 
@@ -377,7 +420,9 @@ local table_insert = table.insert
 local IsValid = IsValid
 local table_remove = table.remove
 function ACF_GetLinkedWheels(MobilityEnt)
-	if not IsValid(MobilityEnt) then return {} end
+	if not IsValid(MobilityEnt) then
+		return {}
+	end
 
 	local ToCheck = {}
 	local Checked = {}
@@ -477,25 +522,41 @@ local WireTable = {
 }
 
 function ACE_GetWeaponUser(Weapon, inp)
-	if not IsValid(inp) then return end
+	if not IsValid(inp) then
+		return
+	end
 
 	if inp:GetClass() == "gmod_wire_adv_pod" then
-		if IsValid(inp.Pod) then return inp.Pod:GetDriver() end
+		if IsValid(inp.Pod) then
+			return inp.Pod:GetDriver()
+		end
 	elseif inp:GetClass() == "gmod_wire_pod" then
-		if IsValid(inp.Pod) then return inp.Pod:GetDriver() end
+		if IsValid(inp.Pod) then
+			return inp.Pod:GetDriver()
+		end
 	elseif inp:GetClass() == "gmod_wire_keyboard" then
-		if IsValid(inp.ply) then return inp.ply end
+		if IsValid(inp.ply) then
+			return inp.ply
+		end
 	elseif inp:GetClass() == "gmod_wire_joystick" then
-		if IsValid(inp.Pod) then return inp.Pod:GetDriver() end
+		if IsValid(inp.Pod) then
+			return inp.Pod:GetDriver()
+		end
 	elseif inp:GetClass() == "gmod_wire_joystick_multi" then
-		if IsValid(inp.Pod) then return inp.Pod:GetDriver() end
+		if IsValid(inp.Pod) then
+			return inp.Pod:GetDriver()
+		end
 	elseif inp:GetClass() == "gmod_wire_expression2" then
 		if inp.Inputs.Fire then
 			return ACE_GetWeaponUser(Weapon, inp.Inputs.Fire.Src)
 		elseif inp.Inputs.Shoot then
 			return ACE_GetWeaponUser(Weapon, inp.Inputs.Shoot.Src)
 		elseif inp.Inputs then
-			for _, v in pairs(inp.Inputs) do if IsValid(v.Src) and WireTable[v.Src:GetClass()] then return ACE_GetWeaponUser(Weapon, v.Src) end end
+			for _, v in pairs(inp.Inputs) do
+				if IsValid(v.Src) and WireTable[v.Src:GetClass()] then
+					return ACE_GetWeaponUser(Weapon, v.Src)
+				end
+			end
 		end
 	end
 

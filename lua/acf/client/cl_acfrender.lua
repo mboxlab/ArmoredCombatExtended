@@ -41,33 +41,27 @@ do
 	end
 
 	net.Receive("ACF_RenderDamage", function()
+		
+		local ent = net.ReadEntity()
 
-		local Index = net.ReadUInt(13)
-		local Entity = ents.GetByIndex( Index )
+		if IsValid(ent) then
+			local percent = net.ReadUInt(8) / 255
+			ent.ACF_HealthPercent = percent
 
-		if IsValid(Entity) then
-
-			local MaxHealth = net.ReadFloat()
-			local Health = net.ReadFloat()
-
-			if math.Round(MaxHealth) == math.Round(Health) then
-				ACF_HealthRenderList[Entity:EntIndex()] = nil
+			if percent == 1 then
+				ACF_HealthRenderList[ent:EntIndex()] = nil
 				return
 			end
 
-			Entity.ACF_Health = Health
-			Entity.ACF_MaxHealth = MaxHealth
-			Entity.ACF_HealthPercent = (Health / MaxHealth)
-
-			if Entity.ACF_HealthPercent > 0.7 then
-				Entity.ACF_Material = Damaged[1]
-			elseif Entity.ACF_HealthPercent > 0.3 then
-				Entity.ACF_Material = Damaged[2]
-			elseif Entity.ACF_HealthPercent <= 0.3 then
-				Entity.ACF_Material = Damaged[3]
+			if percent > 0.7 then
+				ent.ACF_Material = Damaged[1]
+			elseif percent > 0.3 then
+				ent.ACF_Material = Damaged[2]
+			elseif percent <= 0.3 then
+				ent.ACF_Material = Damaged[3]
 			end
 
-			ACF_HealthRenderList[Entity:EntIndex()] = Entity
+			ACF_HealthRenderList[ent:EntIndex()] = ent
 
 		end
 	end)
