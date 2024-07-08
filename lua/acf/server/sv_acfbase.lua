@@ -268,7 +268,7 @@ function ACF_VehicleDamage(Entity, Energy, FrArea, Angle, Inflictor, _, Gun, Typ
 
 	return HitRes
 end
-local function boneSolver_1(HitRes, Damage, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
+local function boneSolver_1(HitRes, Damage, Target, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
 
 	Target.ACF.Armour = Mass * 0.02 -- Set the skull thickness as a percentage of Squishy weight, this gives us 2mm for a player, about 22mm for an Antlion Guard. Seems about right
 	HitRes = acf_CalcDamage(Target, Energy, FrArea, Angle, Type) -- This is hard bone, so still sensitive to impact angle
@@ -287,7 +287,7 @@ local function boneSolver_1(HitRes, Damage, Entity, Energy, FrArea, Angle, Infli
 	return HitRes, Damage
 end
 
-local function boneSolver_0_2_3(HitRes, Damage, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
+local function boneSolver_0_2_3(HitRes, Damage, Target, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
 	-- This means we hit the torso. We are assuming body armour/tough exoskeleton/zombie don't give fuck here, so it's tough
 	Target.ACF.Armour = Mass * 0.04 -- Set the armour thickness as a percentage of Squishy weight, this gives us 8mm for a player, about 90mm for an Antlion Guard. Seems about right
 	HitRes = acf_CalcDamage(Target, Energy, FrArea, Angle, Type) -- Armour plate,, so sensitive to impact angle
@@ -305,7 +305,7 @@ local function boneSolver_0_2_3(HitRes, Damage, Entity, Energy, FrArea, Angle, I
 	return HitRes, Damage
 end
 
-local function boneSolver_4_5(HitRes, Damage, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
+local function boneSolver_4_5(HitRes, Damage, Target, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
 	-- This means we hit an arm or appendage, so ormal damage, no armour
 	Target.ACF.Armour = Size * 0.2 * 0.02 -- A fitht the bounding radius seems about right for most critters appendages
 	HitRes = acf_CalcDamage(Target, Energy, FrArea, 0, Type) -- This is flesh, angle doesn't matter
@@ -313,14 +313,14 @@ local function boneSolver_4_5(HitRes, Damage, Entity, Energy, FrArea, Angle, Inf
 	return HitRes, Damage
 end
 
-local function boneSolver_6_7(HitRes, Damage, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
+local function boneSolver_6_7(HitRes, Damage, Target, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
 	Target.ACF.Armour = Size * 0.2 * 0.02 -- A fitht the bounding radius seems about right for most critters appendages
 	HitRes = acf_CalcDamage(Target, Energy, FrArea, 0, Type) -- This is flesh, angle doesn't matter
 	Damage = HitRes.Damage * 10 -- Limbs are somewhat less important
 	return HitRes, Damage
 end
 
-local function boneSolver_10(HitRes, Damage, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
+local function boneSolver_10(HitRes, Damage, Target, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
 	-- This means we hit a backpack or something
 	Target.ACF.Armour = Size * 0.1 * 0.02 -- Arbitrary size, most of the gear carried is pretty small
 	HitRes = acf_CalcDamage(Target, Energy, FrArea, 0, Type) -- This is random junk, angle doesn't matter
@@ -352,7 +352,7 @@ function ACF_SquishyDamage(Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, 
 	if Bone then
 		local solver = SquishyDamageBoneSolver[Bone]
 		if solver then
-			HitRes, Damage = solver(HitRes, Damage, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
+			HitRes, Damage = solver(HitRes, Damage, Target, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
 		else
 			Target.ACF.Armour = Size * 0.2 * 0.02
 			HitRes = acf_CalcDamage(Target, Energy, FrArea, 0)
