@@ -149,6 +149,8 @@ ACF.MissileVelocityMul = 3 -- Multiplier for missile shell velocity on detonatio
 
 if CLIENT then
 	ACF.KillIconColor	= Color(200, 200, 48)
+else
+	ACF.RestrictInfo	= true
 end
 
 -- UNLESS YOU WANT SPALL TO FLY BACKWARDS, BE ABSOLUTELY SURE TO MAKE SURE THIS VECTOR LENGTH IS LESS THAN 1
@@ -182,7 +184,12 @@ if SERVER then
 
 	CreateConVar("acf_mines_max", 10) -- The mine limit
 	CreateConVar("acf_meshvalue", 1)
-	CreateConVar("acf_restrictinfo", 1) -- 0=any, 1=owned
+
+	CreateConVar("acf_restrictinfo", 1)				-- 0=any, 1=owned
+	cvars.RemoveChangeCallback("acf_restrictinfo", "ACF_CVarChangeCallback")
+	cvars.AddChangeCallback("acf_restrictinfo", function(_, _, new)
+		ACF.RestrictInfo = tobool(new)
+	end, "ACF_CVarChangeCallback")
 
 	-- Cvars for legality checking
 	CreateConVar("acf_legalcheck", 1, FCVAR_ARCHIVE)
