@@ -283,15 +283,8 @@ elseif CLIENT then
 
 end
 
-if ACF.AllowCSLua > 0 then
-	AddCSLuaFile("autorun/translation/ace_translationpacks.lua")
-	RunConsoleCommand("sv_allowcslua", 1)
-	include("autorun/translation/ace_translationpacks.lua") -- File that is overwritten to install a translation pack
-else
-	RunConsoleCommand("sv_allowcslua", 0)
-	include("autorun/translation/ace_translationpacks.lua")
-	AddCSLuaFile("autorun/translation/ace_translationpacks.lua")
-end
+AddCSLuaFile("autorun/translation/ace_translationpacks.lua")
+include("autorun/translation/ace_translationpacks.lua")
 
 include("acf/shared/sh_ace_particles.lua")
 include("acf/shared/sh_ace_sound_loader.lua")
