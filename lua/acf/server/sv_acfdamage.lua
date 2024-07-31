@@ -268,7 +268,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 						if (BlastRes and BlastRes.Kill) or (FragRes and FragRes.Kill) then
 							ACF_HEKill( Tar, (TargetPos - NewHitpos):GetNormalized(), PowerFraction , Hitpos)
 						else
-							ACF_KEShove(Tar, NewHitpos, (TargetPos - NewHitpos):GetNormalized(), PowerFraction * 10 * (GetConVar("acf_hepush"):GetFloat() or 1) ) --0.333
+							ACF_KEShove(Tar, NewHitpos, (TargetPos - NewHitpos):GetNormalized(), PowerFraction * 10 * (GetConVar("acf_hepush"):GetFloat() or 1), Inflictor) --0.333
 						end
 					end
 				end)
@@ -292,7 +292,7 @@ function ACF_HE( Hitpos , _ , FillerMass, FragMass, Inflictor, NoOcc, Gun )
 				else
 
 					--Assuming about 1/30th of the explosive energy goes to propelling the target prop (Power in KJ * 1000 to get J then divided by 33)
-					ACF_KEShove(Tar, Hitpos, Table.Vec, PowerFraction * 5 * (GetConVar("acf_hepush"):GetFloat() or 1) )
+					ACF_KEShove(Tar, Hitpos, Table.Vec, PowerFraction * 5 * (GetConVar("acf_hepush"):GetFloat() or 1), Inflictor)
 
 				end
 			end
@@ -800,7 +800,7 @@ function ACF_RoundImpact( Bullet, Speed, Energy, Target, HitPos, HitNormal , Bon
 
 	end
 
-	ACF_KEShove( Target, HitPos, Bullet["Flight"]:GetNormalized(), Energy.Kinetic * HitRes.Loss * 4000 * Bullet["ShovePower"] * (GetConVar("acf_recoilpush"):GetFloat() or 1))
+	ACF_KEShove(Target, HitPos, Bullet["Flight"]:GetNormalized(), Energy.Kinetic * HitRes.Loss * 4000 * Bullet["ShovePower"] * (GetConVar("acf_recoilpush"):GetFloat() or 1), Bullet.Owner)
 
 	return HitRes
 end
@@ -877,9 +877,8 @@ local function ACE_ApplyForceOffset(Phys, Force, Pos, ForceVal) --For some reaso
 end
 ]]--
 --Handles ACE forces (HE Push, Recoil, etc)
-function ACF_KEShove(Target, Pos, Vec, KE )
-
-	local CanDo = hook.Run("ACF_KEShove", Target, Pos, Vec, KE )
+function ACF_KEShove(Target, Pos, Vec, KE, Inflictor)
+	local CanDo = hook.Run("ACF_KEShove", Target, Pos, Vec, KE, Inflictor)
 	if CanDo == false then return end
 
 	--Gets the baseplate of target
