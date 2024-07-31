@@ -425,7 +425,7 @@ do
 		return ACE.Sounds["Ricochets"]["large"]["close"][math.random(#ACE.Sounds["Ricochets"]["large"]["close"])], 7, 1
 	end
 
-	--Handles ricochet sounds 
+	--Handles ricochet sounds
 	function ACE_SRicochet( HitPos, Caliber, Velocity, HitWorld, Material )
 		local event = newSoundEvent({
 			SoundLevel = 100,
@@ -561,6 +561,16 @@ do
 			-- using the old gunid, but wont that cause memory leak?
 			if soundData then
 				local distancedSoundData = soundData[soundDistance]
+
+				if not distancedSoundData then return end
+				--[[
+					[ace] addons/ace/lua/acf/client/cl_soundbase.lua:564: attempt to index local 'distancedSoundData' (a nil value)
+						1. OnArrived - addons/ace/lua/acf/client/cl_soundbase.lua:564
+						2. func - addons/ace/lua/acf/client/cl_soundbase.lua:705
+							3. internal_call - addons/modules/lua/includes/replacement/modules/hook.lua:295
+							4. unknown - addons/modules/lua/includes/replacement/modules/hook.lua:315 (x364)
+				]]
+
 				local soundPackage = distancedSoundData["Package"]
 				local index = (fireSoundPackageIndex[gunID] or 0) + 1
 
