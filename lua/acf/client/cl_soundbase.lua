@@ -560,7 +560,7 @@ do
 
 			-- using the old gunid, but wont that cause memory leak?
 			if soundData then
-				local distancedSoundData = soundData[soundDistance]
+				local distancedSoundData = soundData[soundDistance] or soundData["main"]
 				local soundPackage = distancedSoundData["Package"]
 				local index = (fireSoundPackageIndex[gunID] or 0) + 1
 
