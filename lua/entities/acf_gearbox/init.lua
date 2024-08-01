@@ -448,7 +448,6 @@ end
 function ENT:CheckRopes()
 
 	for Key, Link in ipairs( self.WheelLink ) do
-	for _, Link in pairs( self.WheelLink ) do
 
 		local Ent = Link.Ent
 

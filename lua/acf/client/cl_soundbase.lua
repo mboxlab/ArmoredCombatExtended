@@ -560,17 +560,7 @@ do
 
 			-- using the old gunid, but wont that cause memory leak?
 			if soundData then
-				local distancedSoundData = soundData[soundDistance]
-
-				if not distancedSoundData then return end
-				--[[
-					[ace] addons/ace/lua/acf/client/cl_soundbase.lua:564: attempt to index local 'distancedSoundData' (a nil value)
-						1. OnArrived - addons/ace/lua/acf/client/cl_soundbase.lua:564
-						2. func - addons/ace/lua/acf/client/cl_soundbase.lua:705
-							3. internal_call - addons/modules/lua/includes/replacement/modules/hook.lua:295
-							4. unknown - addons/modules/lua/includes/replacement/modules/hook.lua:315 (x364)
-				]]
-
+				local distancedSoundData = soundData[soundDistance] or soundData["main"]
 				local soundPackage = distancedSoundData["Package"]
 				local index = (fireSoundPackageIndex[gunID] or 0) + 1
 
