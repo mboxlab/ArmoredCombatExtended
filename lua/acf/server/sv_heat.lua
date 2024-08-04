@@ -128,8 +128,13 @@ function ACE_HeatFromEngine( Engine )
 
 		if Engine.FuelType == "Multifuel" then
 			local t = enginetypes[Engine.EngineType]
+			if t then
 			Heat = RPM / t[1]
 			ExTemp = t[2]
+			else
+				Heat = RPM / 100000
+				ExTemp = 55
+			end
 		else
 			local t = fueltypes[Engine.FuelType]
 			Heat = RPM / t[1]
