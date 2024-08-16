@@ -34,7 +34,6 @@ function ENT:Initialize()
 	self.PhysObj = self:GetPhysicsObject()
 
 	self.BaseClass.Initialize(self)
-	self:CPPISetOwner(self)
 
 	--self.NextLegalCheck  = ACF.CurTime + math.random(ACF.Legal.Min, ACF.Legal.Max) -- give any spawning issues time to iron themselves out
 	self.NextLegalCheck  = ACF.CurTime + 3 -- give any spawning issues time to iron themselves out

@@ -425,7 +425,7 @@ do
 		return ACE.Sounds["Ricochets"]["large"]["close"][math.random(#ACE.Sounds["Ricochets"]["large"]["close"])], 7, 1
 	end
 
-	--Handles ricochet sounds 
+	--Handles ricochet sounds
 	function ACE_SRicochet( HitPos, Caliber, Velocity, HitWorld, Material )
 		local event = newSoundEvent({
 			SoundLevel = 100,
