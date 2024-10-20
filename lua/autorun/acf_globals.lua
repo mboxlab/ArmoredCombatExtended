@@ -63,23 +63,33 @@ ACF.RefillSpeed = 250 -- (ACF.RefillSpeed / RoundMass) / Distance
 
 ---------------------------------- Explosive config ----------------------------------
 
-ACF.HEDamageFactor = 50
-ACF.BoomMult = 8 -- How much more do ammocrates/fueltanks blow up, useful since crates detonate all at once now.
+ACF.HEDamageFactor    = 50
+ACF.BoomMult          = 1					-- How much more do ammocrates/fueltanks blow up, useful since crates detonate all at once now.
+ACF.APAmmoDetonateFactor = 2				--Multiplier for the explosion power of AP proppelant. To make AP rounds(the most common round) less underwhelming.
 
-ACF.HEPower = 8000 -- HE Filler power per KG in KJ
-ACF.HEDensity = 1.65 -- HE Filler density (That's TNT density)
-ACF.HEFrag = 1500 -- Mean fragment number for equal weight TNT and casing
-ACF.HEBlastPen = 0.4 -- Blast penetration exponent based of HE power
-ACF.HEFeatherExp = 0.5 -- exponent applied to HE dist/maxdist feathering, <1 will increasingly bias toward max damage until sharp falloff at outer edge of range
-ACF.HEATMVScale = 0.75 -- Filler KE to HEAT slug KE conversion expotential
-ACF.HEATMVScaleTan = 0.75 -- Filler KE to HEAT slug KE conversion expotential
-ACF.HEATMulAmmo = 30 -- HEAT slug damage multiplier; 13.2x roughly equal to AP damage
-ACF.HEATMulFuel = 4 -- needs less multiplier, much less health than ammo
-ACF.HEATMulEngine = 10 -- likewise
-ACF.HEATPenLayerMul = 0.95 -- HEAT base energy multiplier
-ACF.HEATAirGapFactor = 0.15 -- % velocity loss for every meter traveled. 0.2x means HEAT loses 20% of its energy every 2m traveled. 1m is about typical for the sideskirt spaced armor of most tanks.
-ACF.HEATBoomConvert = 1 / 3 -- percentage of filler that creates HE damage at detonation
-ACF.HEATPlungingReduction = 4 -- Multiplier for the penarea of HEAT shells. 2x is a 50% reduction in penetration, 4x 25% and so on.
+ACF.HEPower           = 8000					-- HE Filler power per KG in KJ
+ACF.HEDensity         = 1.65					-- HE Filler density (That's TNT density)
+ACF.HEFrag            = 2500					-- Mean fragment number for equal weight TNT and casing
+ACF.HEFragDragFactor  = 0.2						--Lower = less drag. Higher = more. Adjust this to affect the penetration and lethality of fragments. If frags pen infantry die.
+ACF.HEFragRadiusMul   = 2						--Hard cap on frag radius. Multiplies HE Radius.
+ACF.HEBlastPen        = 0.4					-- Blast penetration exponent based of HE power
+ACF.HEFeatherExp      = 0.5					-- exponent applied to HE dist/maxdist feathering, <1 will increasingly bias toward max damage until sharp falloff at outer edge of range
+ACF.HEBlastPenMinPow  = 35000				--Minimum HE filler in KJ to start testing for blast penetrations. Don't even bother on something that doesn't even have 10mm of pen
+ACF.HEBlastPenetration  = 3500				--KJ per mm penetrated
+ACF.HEBlastPenRadiusMul  = 3				--Fraction of the HE radius to apply penetrations to. 2 is half. 4 is 1/4th.
+ACF.HEBlastPenLossAtMaxDist = 0.35				--HE penetration against targets at the max penetration distance
+ACF.HEBlastPenLossExponent = 1.5					--Exponent for pen loss. For example, with a 0.25x pen loss, 2 means 0.25^2 = 0.0625 loss. Higher means less falloff.
+ACF.HEATMVScale       = 0.75					-- Filler KE to HEAT slug KE conversion expotential
+ACF.HEATMVScaleTan    = 0.75					-- Filler KE to HEAT slug KE conversion expotential
+ACF.HEATMulAmmo       = 30						-- HEAT slug damage multiplier; 13.2x roughly equal to AP damage
+ACF.HEATMulFuel       = 4						-- needs less multiplier, much less health than ammo
+ACF.HEATMulEngine     = 10						-- likewise
+ACF.HEATPenLayerMul   = 0.95					-- HEAT base energy multiplier
+ACF.HEATAirGapFactor  = 0.15						--% velocity loss for every meter traveled. 0.2x means HEAT loses 20% of its energy every 2m traveled. 1m is about typical for the sideskirt spaced armor of most tanks.
+ACF.HEATBoomConvert   = 1 / 3					-- percentage of filler that creates HE damage at detonation
+ACF.HEATPlungingReduction = 4					--Multiplier for the penarea of HEAT shells. 2x is a 50% reduction in penetration, 4x 25% and so on.
+ACF.GlatgmPenMul = 1.3							--Multiplier for the penetration of GLATGM rounds
+ACF.ShellPenMul = 1								--Multiplier for the penetration of HEAT rounds
 
 ACF.ScaledHEMax = 75
 ACF.ScaledEntsMax = 5
@@ -111,6 +121,31 @@ ACF.PhysMaxVel = 8000
 
 ACF.NormalizationFactor = 0.15 -- at 0.1(10%) a round hitting a 70 degree plate will act as if its hitting a 63 degree plate, this only applies to capped and LRP ammunition.
 
+---------------------------------- Rules & Legality ----------------------------------
+ACF.EnginesRequireFuel = 1 --Should all engines require fuel to run? Modified by console commands.
+ACF.LargeEnginesRequireDrivers = 1 --Should engines over a certain hp need a driver? Modified by console commands.
+ACF.LargeEngineThreshold = 100 --Engine size in hp required to need a driver
+ACF.LargeGunsRequireGunners = 1 --Should engines over a certain hp need a driver? Modified by console commands.
+ACF.LargeGunsThreshold = 40 --Cannon size in mm required to need a driver
+
+ACF.PointsLimit = 10000 --The maximum legal pointvalue
+ACF.MaxWeight = 60000 --The max weight in Kg
+
+ACE.CannonPointMul = 1.0 --Multiplier for cannon point cost
+ACE.EnginePointMul = 1.0 --Multiplier for engine cost in points
+ACF.PointsPerTon   = 42  --Base cost per ton of armor. Multiplier used to balance out armor
+ACE.AmmoPerTon     = 100 --Point cost per ton of ammo
+
+ACE.MatCostTables = {
+	Alum			= 1.2 * (0.34 / 0.221),	--2mm per 1mm. A 20% increase in cost for 25% reduction in weight.
+	CHA				= 0.8 * (0.98 / 1.25),	--25% more heavy for a 20% reduction in cost.
+	Cer				= 1.4 * (2.05 / 1.4),	--50% more protection per kg for a 40% increase in cost. Brittle and prone to damage.
+	ERA				= 2.0 * (2.5 / 2.0),
+	Rub				= 1.5 * (0.05 / 0.2),
+	Texto			= 1.4 * (0.5 / 0.35),
+	RHA 			= 1
+}
+
 ---------------------------------- Misc & other ----------------------------------
 
 ACF.LargeCaliber = 10 -- Gun caliber in CM to be considered a large caliber gun, 10cm = 100mm
@@ -130,22 +165,23 @@ ACF.HPDamageMult = 8 -- HP Damage Multipler
 
 ACF.AllowCSLua = 0
 
-ACF.Threshold = 264.7 -- Health Divisor (don't forget to update cvar function down below)
-ACF.PartialPenPenalty = 5 -- Exponent for the damage penalty for partial penetration
-ACF.PenAreaMod = 0.85
-ACF.KinFudgeFactor = 2.1 -- True kinetic would be 2, over that it's speed biaised, below it's mass biaised
-ACF.KEtoRHA = 0.25 -- Empirical conversion from (kinetic energy in KJ)/(Area in Cm2) to RHA penetration
-ACF.GroundtoRHA = 0.15 -- How much mm of steel is a mm of ground worth (Real soil is about 0.15)
-ACF.KEtoSpall = 1
-ACF.AmmoMod = 2.6 -- Ammo modifier. 1 is 1x the amount of ammo
-ACF.AmmoLengthMul = 1
-ACF.AmmoWidthMul = 1
-ACF.ArmorMod = 1
-ACF.SlopeEffectFactor = 1.1 -- Sloped armor effectiveness: armor / cos(angle) ^ factor
-ACF.Spalling = 1
-ACF.SpallMult = 1
+ACF.Threshold           = 264.7					-- Health Divisor (don't forget to update cvar function down below)
+ACF.PartialPenPenalty   = 5						-- Exponent for the damage penalty for partial penetration
+ACF.PenAreaMod          = 0.85
+ACF.KinFudgeFactor      = 2.1					-- True kinetic would be 2, over that it's speed biaised, below it's mass biaised
+ACF.KEtoRHA             = 0.25					-- Empirical conversion from (kinetic energy in KJ)/(Area in Cm2) to RHA penetration
+ACF.GroundtoRHA         = 0.15					-- How much mm of steel is a mm of ground worth (Real soil is about 0.15)
+ACF.KEtoSpall           = 1
+ACF.AmmoMod             = 2.6					-- Ammo modifier. 1 is 1x the amount of ammo
+ACF.AmmoLengthMul       = 1
+ACF.AmmoWidthMul        = 1
+ACF.ArmorMod            = 1
+ACF.SlopeEffectFactor   = 1.0					-- Sloped armor effectiveness: armor / cos(angle) ^ factor
+ACF.Spalling            = 1
+ACF.SpallMult           = 1
 
-ACF.MissileVelocityMul = 3 -- Multiplier for missile shell velocity on detonation. Useful for kinetic missiles.
+--In case the recoil torque broke too many tanks, allows the owner to disable recoil torque. Has CVAR
+ACF.UseLegacyRecoil = 0
 
 if CLIENT then
 	ACF.KillIconColor	= Color(200, 200, 48)
@@ -191,6 +227,15 @@ if SERVER then
 		ACF.RestrictInfo = tobool(new)
 	end, "ACF_CVarChangeCallback")
 
+	-- Toggles for vehicle legality restrictions
+	CreateConVar( "acf_legality_enginesrequirefuel", 1 , FCVAR_ARCHIVE)
+
+	CreateConVar( "acf_legality_largeenginesneeddriver", 1 , FCVAR_ARCHIVE)
+	CreateConVar( "acf_legality_largeenginethreshold", 100 , FCVAR_ARCHIVE)
+
+	CreateConVar( "acf_legality_largegunsneedgunner", 1 , FCVAR_ARCHIVE)
+	CreateConVar( "acf_legality_largegunthreshold", 40 , FCVAR_ARCHIVE)
+
 	-- Cvars for legality checking
 	CreateConVar("acf_legalcheck", 1, FCVAR_ARCHIVE)
 	CreateConVar("acf_legal_ignore_model", 0, FCVAR_ARCHIVE)
@@ -206,6 +251,7 @@ if SERVER then
 	CreateConVar("acf_enable_dp", 1, FCVAR_ARCHIVE) -- Enable the inbuilt damage protection system.
 
 	-- Cvars for recoil/he push
+	CreateConVar("acf_kepush", 1, FCVAR_ARCHIVE)
 	CreateConVar("acf_hepush", 1, FCVAR_ARCHIVE)
 	CreateConVar("acf_recoilpush", 1, FCVAR_ARCHIVE)
 
@@ -230,6 +276,9 @@ if SERVER then
 	-- Smoke
 	CreateConVar("acf_wind", 600, FCVAR_ARCHIVE)
 
+	--Uses non-torqueing recoil if there are problems
+	CreateConVar("acf_legacyrecoil", 0, FCVAR_ARCHIVE)
+
 	function ACF_CVarChangeCallback(CVar, _, New)
 
 		if CVar == "acf_healthmod" then
@@ -251,7 +300,19 @@ if SERVER then
 		elseif CVar == "acf_explosions_scaled_he_max" then
 			ACF.ScaledHEMax = math.max(New, 50)
 		elseif CVar == "acf_explosions_scaled_ents_max" then
-			ACF.ScaledEntsMax = math.max(New, 1)
+			ACF.ScaledEntsMax = math.max(New,1)
+		elseif CVar == "acf_legacyrecoil" then
+			ACF.UseLegacyRecoil = math.floor(math.Clamp(New, 0, 1))
+		elseif CVar == "acf_legality_enginesrequirefuel" then
+			ACF.EnginesRequireFuel = math.ceil(math.Clamp(New, 0, 1))
+		elseif CVar == "acf_legality_largeenginesneeddriver" then
+			ACF.LargeEnginesRequireDrivers = math.ceil(math.Clamp(New, 0, 1))
+		elseif CVar == "acf_legality_largeenginethreshold" then
+			ACF.LargeEngineThreshold = math.ceil(math.Clamp(New, 0, 10000))
+		elseif CVar == "acf_legality_largegunsneedgunner" then
+			ACF.LargeGunsRequireGunners = math.ceil(math.Clamp(New, 0, 1))
+		elseif CVar == "acf_legality_largegunthreshold" then
+			ACF.LargeGunsThreshold = math.ceil(math.Clamp(New, 0, 10000))
 		elseif CVar == "acf_enable_dp" then
 			if ACE_SendDPStatus then ACE_SendDPStatus() end
 		end
@@ -267,6 +328,12 @@ if SERVER then
 	cvars.AddChangeCallback("acf_debris_children", ACF_CVarChangeCallback)
 	cvars.AddChangeCallback("acf_explosions_scaled_he_max", ACF_CVarChangeCallback)
 	cvars.AddChangeCallback("acf_explosions_scaled_ents_max", ACF_CVarChangeCallback)
+	cvars.AddChangeCallback("acf_legacyrecoil", ACF_CVarChangeCallback)
+	cvars.AddChangeCallback("acf_legality_enginesrequirefuel", ACF_CVarChangeCallback)
+	cvars.AddChangeCallback("acf_legality_largeenginesneeddriver", ACF_CVarChangeCallback)
+	cvars.AddChangeCallback("acf_legality_largeenginethreshold", ACF_CVarChangeCallback)
+	cvars.AddChangeCallback("acf_legality_largegunsneedgunner", ACF_CVarChangeCallback)
+	cvars.AddChangeCallback("acf_legality_largegunthreshold", ACF_CVarChangeCallback)
 	cvars.AddChangeCallback("acf_enable_dp", ACF_CVarChangeCallback)
 
 elseif CLIENT then
@@ -306,6 +373,7 @@ if SERVER then
 	include("acf/server/sv_heat.lua")
 	include("acf/server/sv_legality.lua")
 	include("acf/server/sv_acfpermission.lua")
+	include("acf/server/sv_contraptionlegality.lua")
 
 	AddCSLuaFile("acf/client/cl_acfballistics.lua")
 	AddCSLuaFile("acf/client/cl_acfmenu_gui.lua")
@@ -326,7 +394,6 @@ elseif CLIENT then
 	include("acf/client/cl_acfpermission.lua")
 	include("acf/client/gui/cl_acfsetpermission.lua")
 
-	CreateClientConVar("acf_cl_particlemul", "1", true)
 	CreateClientConVar("ACF_MobilityRopeLinks", "1", true, true)
 
 end
@@ -343,22 +410,18 @@ include("acf/shared/rounds/roundfl.lua")
 include("acf/shared/rounds/roundhp.lua")
 include("acf/shared/rounds/roundsmoke.lua")
 include("acf/shared/rounds/roundrefill.lua")
-include("acf/shared/rounds/roundapc.lua")
 
--- interwar period
-if ACF.Year > 1920 then
 
-	include("acf/shared/rounds/roundapbc.lua")
-	include("acf/shared/rounds/roundapcbc.lua")
+--interwar period
+--if ACF.Year > 1920 then
 
-end
--- A surprising amount of things were made during WW2
+--end
+--A surprising amount of things were made during WW2
 if ACF.Year > 1939 then
 
 	include("acf/shared/rounds/roundhesh.lua")
 	include("acf/shared/rounds/roundheat.lua")
 	include("acf/shared/rounds/roundaphe.lua")
-	include("acf/shared/rounds/roundaphecbc.lua")
 	include("acf/shared/rounds/roundhvap.lua")
 
 end

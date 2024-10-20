@@ -47,8 +47,6 @@ function ENT:Initialize()
 
 	self.JustLaunched = true
 	self.TimeOfLaunch = 0
-	self.Boosted = false
-	self.MotorActivated = false
 	self.LastPos = Vector()
 	self.ThinkDelay = engine.TickInterval()
 	self.Exploded = false
@@ -56,6 +54,7 @@ function ENT:Initialize()
 	self.CanDetonate = false
 
 	self.MissilePosition = self:GetPos()
+	self.IsUnderWater = 0
 
 	self.P = Angle(0,0,0)
 	self.I = Angle(0,0,0)
@@ -85,6 +84,8 @@ function ENT:Initialize()
 
 	self.IgnitionDelay = 0
 
+	self.WaterZHeight = -1 --If set to >=0 it will indicate it's a torpedo.
+	self.UpdateFX = true
 end
 
 
@@ -119,12 +120,71 @@ function ENT:Think()
 	local DifFacing = (FlightDir:Angle() - Facing:Angle())
 	DifFacing = Angle(math.NormalizeAngle(DifFacing.pitch),math.NormalizeAngle(DifFacing.yaw),0)
 
+	local LastWater = self.IsUnderWater
+	self.IsUnderWater = self:WaterLevel() / 3
+
+	if math.ceil(LastWater) ~= math.ceil(self.IsUnderWater) then
+		self.UpdateFX = true
+
+		local WaterTr = { }
+		WaterTr.start = Pos - self.Flight * 10
+		WaterTr.endpos = Pos + self.Flight * 500
+		WaterTr.mask = MASK_WATER
+		local Water = util.TraceLine( WaterTr )
+		if Water.Hit then
+			local Sparks = EffectData()
+			Sparks:SetOrigin( Pos )
+			Sparks:SetScale( self.Bulletdata2["Caliber"] * 2 )
+			util.Effect( "watersplash", Sparks )
+		end
+
+	end
+
+	if self.WaterZHeight == 0 then
+		local WaterTr = { }
+		WaterTr.start = Pos + Vector(0,0, 50000)
+		WaterTr.endpos = Pos
+		WaterTr.mask = MASK_WATER
+		local Water = util.TraceLine( WaterTr )
+
+		if Water.Hit then
+			self.WaterZHeight = Water.HitPos.z
+		end
+
+	elseif self.WaterZHeight ~= -1 then
+		--print(Pos.z - self.WaterZHeight)
+		if Pos.z < self.WaterZHeight and Pos.z - self.WaterZHeight > -500 and self.MissileActive then
+			self.WaterZHeight = self.WaterZHeight
+			local Sparks = EffectData()
+			Sparks:SetOrigin( Vector(Pos.x, Pos.y, self.WaterZHeight) )
+			Sparks:SetScale( self.RoundWeight / 50 )
+			util.Effect( "waterripple", Sparks )
+		end
+
+	end
+
+
+
+	--[[
+	local Sparks = EffectData()
+	Sparks:SetOrigin( Water.HitPos + Vector(0,0,0) )
+	Sparks:SetScale( self.RoundWeight / 50 )
+	util.Effect( "waterripple", Sparks )
+	]]--
+
+	local DMul = 1
+	local GMul = 1
+	if self.IsUnderWater > 0 then
+		DMul = 1 + 60 * self.IsUnderWater
+		GMul = math.max(1 - self.Buoyancy * self.IsUnderWater,0)
+	end
+
 	--------------------------
 	-----Guidance Section-----
 	--------------------------
 
 	self.TargetAcquired = false
-	self.TargetDir = Vector()
+	--self.TargetDir = Vector()
 
 	--
 	if self.GuidanceActive and (self.Guidance.Name ~= "Dumb") then
@@ -136,26 +196,36 @@ function ENT:Think()
 		if Guidance.TargetPos then --Only updates with a valid position
 			TestPos = Guidance.TargetPos
 			self.TargetAcquired = true
-		elseif not self.HasInertial then
-			TestPos = nil
+		--elseif not self.TargetPos then
+		--	TestPos = nil
 		end
 
 		if TestPos then --Guidance location is valid. Update the target position.
 			self.TargetPos = TestPos or nil
-			self.TargetDir = (Pos - self.TargetPos):GetNormalized()
 		elseif self.HasDatalink and self.Launcher.TargPos then --Guidance location is not valid. Use datalink position if available.
 			--and IsValid(self.Launcher) Don't know if needed?
 
 
 			self.TargetPos = self.Launcher.TargPos
-			self.TargetDir = (Pos - self.TargetPos):GetNormalized()
 
-		elseif self.HasInertial and self.TargetPos then --Guidance location is not valid. Update inertial position.
+		elseif self.HasInertial and self.TargetPos and self.MissileActive then --Guidance location is not valid. Update inertial position.
 			self.TargetVelocity = self.TargetVelocity or Vector()
 			self.TargetPos = self.TargetPos + self.TargetVelocity * DeltaTime
-			self.TargetDir = (Pos - self.TargetPos):GetNormalized()
 		else						--Guidance location not valid. No inertial guidance. Wipe it clean.
 			self.TargetPos = nil
+		end
+
+		if self.TargetPos and self.TargetPos ~= Vector() then
+
+			if not self.MissileActive then
+				Pos = self.Launcher:GetPos()
+			end
+
+			self.TargetDir = (self.TargetPos - Pos):GetNormalized()
+			--print("x: "..math.Round(self.TargetDir.x,2))
+			--print("y: "..math.Round(self.TargetDir.y,2))
+			--print("z: "..math.Round(self.TargetDir.z,2))
+
 		end
 
 	elseif not self.HasInertial then --Guidance is not active. But can be remembered by inertial nav.
@@ -183,20 +253,43 @@ function ENT:Think()
 			--self.IgnitionDelay self.Guidance.StartDelay
 			if self.BoostTime > 0 then --Missile has a booster left
 				if CT > self.ActivationTime + self.BoostIgnitionDelay then --Past booster ignition delay
-					if not self.Boosted then
-						self.Boosted = true
-							local effect = ACF_GetGunValue(self.BulletData, "effectbooster")
+					local TMul = 1
+
+					--Let's just never touch this again. Please.
+					if self.BoostUnderwater ~= 1 then
+						if self.IsUnderWater > 0 then
+							if self.BoostUnderwater < 1 then --Abovewater only thruster is underwater
+								TMul = 0
+							else
+								TMul = 1
+							end
+						else
+							if self.BoostUnderwater > 1 then --Underwater only thruster is above water
+								TMul = 0
+							else
+								TMul = 1
+							end
+						end
+					end
+
+					if self.UpdateFX then
+						self:StopParticles()
+						if TMul > 0 then
+							local effect = self.BoostEffect or ACF_GetGunValue(self.BulletData, "effectbooster")
 							if effect then
 								ParticleEffectAttach( effect, PATTACH_POINT_FOLLOW, self, self:LookupAttachment("exhaust") or 0 )
+								self.UpdateFX = false
 							end
-
+						end
 					end
-					self.Flight = self.Flight + self:GetForward() * self.BoostAccel * DeltaTime
+
+					self.Flight = self.Flight + self:GetForward() * self.BoostAccel * DeltaTime * TMul
 					self.BoostTime = self.BoostTime - DeltaTime
 
-					if self.BoostTime <= 0 then --Booster detaches/stops. Begin regular rocket operations
+					if self.BoostTime <= 0 then --Booster detaches/stops. Begin regular rocket operations. Potentially add a parentable booster prop to missiles?
 						self:StopParticles()
 						self.ActivationTime = CT
+						self.UpdateFX = true
 					end
 				end
 
@@ -204,20 +297,45 @@ function ENT:Think()
 
 				if CT > self.ActivationTime + self.Burndelay and CT-self.ActivationTime-self.Burndelay < self.BurnTime then
 
-					if not self.MotorActivated then
-						self.MotorActivated = true
-							local effect = ACF_GetGunValue(self.BulletData, "effect")
-							if effect then
-								ParticleEffectAttach( effect, PATTACH_POINT_FOLLOW, self, self:LookupAttachment("exhaust") or 0 )
+					local TMul = 1
+					--self.UnderwaterThrust = 1
+					--self.IsUnderWater > 0
+					--self.BoostUnderwater = 1
+					--Let's just never touch this again. Please.
+					--print(self.BoostUnderwater)
+					if self.UnderwaterThrust ~= 1 then
+						if self.IsUnderWater > 0 then
+							if self.UnderwaterThrust < 1 then --Abovewater only thruster is underwater
+								TMul = 0
+							else
+								TMul = 1
 							end
+						else
+							if self.UnderwaterThrust > 1 then --Underwater only thruster is above water
+								TMul = 0
+							else
+								TMul = 1
+							end
+						end
 					end
 
-					self.Flight = self.Flight + self:GetForward() * self.Thrust * DeltaTime
+					if self.UpdateFX then
+						self:StopParticles()
+						if TMul > 0 then
+							local effect = self.BoostEffect or ACF_GetGunValue(self.BulletData, "effect")
+							if effect then
+								ParticleEffectAttach( effect, PATTACH_POINT_FOLLOW, self, self:LookupAttachment("exhaust") or 0 )
+								self.UpdateFX = false
+							end
+						end
+					end
 
-				elseif self.MotorActivated then
-					self.MotorActivated = false
+					self.Flight = self.Flight + self:GetForward() * self.Thrust * DeltaTime * TMul
+
+				else
 					self:StopParticles()
-					self:StopSound(self.MotorSound)
+					self:StopSound(self.MotorSound or "")
+					self.UpdateFX = false
 					--print(DeltaPos:Length()/39.37) --Prints velocity on motor cutoff. Used for debugging missile speed.
 				end
 				--subtract burndelay from thrust subtraction
@@ -308,8 +426,9 @@ function ENT:Think()
 
 			local AngAdjust = Tarang
 
-			local adjustedrate = self.TurnRate * DeltaTime * (self.Speed^2 / 10000) * math.cos(AngleOfAttack) + self.ThrustTurnRate * DeltaTime
+			local adjustedrate = self.TurnRate * DMul * DeltaTime * (self.Speed^2 / 10000) * math.cos(AngleOfAttack) + self.ThrustTurnRate * DeltaTime
 			AngAdjust = self:LocalToWorldAngles(Angle(math.Clamp(AngAdjust.pitch, -adjustedrate, adjustedrate), math.Clamp(AngAdjust.yaw, -adjustedrate, adjustedrate), 0)) --math.Clamp(AngAdjust.roll, -adjustedrate, adjustedrate)
+			AngAdjust = Angle(AngAdjust.pitch,AngAdjust.yaw,0)
 			self:SetAngles(AngAdjust + Angle(math.Clamp( DifFacing.pitch, 0, 100 ), math.Clamp( DifFacing.yaw, -100, 100 ),0) * 2 * DeltaTime * EnableRotation)
 			--self:SetAngles(AngAdjust)
 
@@ -353,14 +472,15 @@ function ENT:Think()
 		-----Movement Section-----
 		--------------------------
 
-		self.Flight = self.Flight + (Vector(0,0,-9.8)) * DeltaTime
+		self.Flight = self.Flight + (Vector(0,0,-9.8 * GMul)) * DeltaTime
 		self.MissilePosition = Pos + self.Flight * 39.37 * DeltaTime
 		self:SetPos( self.MissilePosition )
 
 		--25 is the result of dividing 2500 by a magic number to compress the speed variable to something nice. 25 = 2500/100
 		self.Flight = self.Flight + (self:GetForward() * (self.Speed ^2 / 25) * math.cos(AngleOfAttack) - FlightDir * (self.Speed^2 / 25) * math.cos(AngleOfAttack)) * DeltaTime * self.FinMul --Adjusts a portion of the flgiht by the fin efficiency multiplier
 
-		self.Flight = self.Flight - (self.Flight:GetNormalized() * self.Drag * self.Flight:LengthSqr()) * DeltaTime --Simple drag multiplier
+
+		self.Flight = self.Flight - (self.Flight:GetNormalized() * self.Drag * DMul * self.Flight:LengthSqr()) * DeltaTime --Simple drag multiplier
 
 		--Delete the missile if it was fired outside of the map
 		if not self:IsInWorld() then
@@ -393,6 +513,36 @@ function ENT:ConfigureMissile()
 	self.Filter	= self.Filter or {self}
 
 	self.Guidance:Configure(self)
+
+
+	--0-stops underwater
+	--1-booster only underwater - DEFAULT
+	--2-works above and below 
+	--3-underwater only
+	--4-booster all and under thrust only
+
+	--0 for abovewater only, 1 for both, 2 for underwater only
+	--self.UnderwaterThrust = 1
+	--self.BoostUnderwater = 1
+	--print(self.UnderwaterThrust)
+	if self.UnderwaterThrust == 0 then
+		self.UnderwaterThrust = 0
+		self.BoostUnderwater = 0
+	elseif self.UnderwaterThrust == 1 then
+		self.UnderwaterThrust = 0
+		self.BoostUnderwater = 1
+	elseif self.UnderwaterThrust == 2 then
+		self.UnderwaterThrust = 1
+		self.BoostUnderwater = 1
+	elseif self.UnderwaterThrust == 3 then
+		self.UnderwaterThrust = 2
+		self.BoostUnderwater = 2
+		self.WaterZHeight = 0 --Will search for a waterheight
+	elseif self.UnderwaterThrust == 4 then
+		self.UnderwaterThrust = 2
+		self.BoostUnderwater = 0
+		self.WaterZHeight = 0 --Will search for a waterheight
+	end
 
 end
 
@@ -447,9 +597,11 @@ function ENT:Detonate()
 		end
 	end)
 
-
+	self.Bulletdata2["PenArea"] = self.Bulletdata2["PenArea"] * self.MissileCalMul
+	--self.Bulletdata2["Caliber"] = self.Bulletdata2["FrArea"] * self.MissileCalMul
 --	self.Bulletdata2["Flight"] = self:GetForward():GetNormalized() * self.Flight * 39.37 * ACF.MissileVelocityMul
-	self.Bulletdata2["Flight"] = self.Flight * 39.37 * ACF.MissileVelocityMul
+	self.Bulletdata2["Flight"] = self.Flight * 39.37 * self.MissileVelocityMul
+
 	self.Bulletdata2.Pos = self:GetPos()
 	self.Bulletdata2.Owner = self:CPPIGetOwner()
 
@@ -506,6 +658,8 @@ do
 			self.MissileActive = true
 			self.ActivationTime = 0
 			self.Lifetime = 0 --Instantly scuttle as soon as can execute.
+
+			self.MissileVelocityMul = self.MissileVelocityMul * 0.2
 
 			return { Damage = 0, Overkill = 0, Loss = 0, Kill = false }
 

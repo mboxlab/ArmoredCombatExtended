@@ -1,7 +1,7 @@
 
 AddCSLuaFile()
 
-ACF.AmmoBlacklist.APFSDS = { "AC", "SA","C","MG", "HMG" ,"RAC", "SC","ATR" , "MO" , "RM", "SL", "GL", "HW", "SC", "BOMB" , "GBU", "ASM", "AAM", "SAM", "UAR", "POD", "FFAR", "ATGM", "ARTY", "ECM", "FGL"}
+ACF.AmmoBlacklist.APFSDS = { "C","MG", "SC" , "MO" , "RM", "SL", "GL", "HW", "SC", "BOMB" , "GBU", "ASM", "AAM", "SAM", "UAR", "POD", "FFAR", "ATGM", "ARTY", "ECM", "FGL","NAV","mNAV"}
 
 local Round = {}
 
@@ -34,11 +34,37 @@ function Round.convert( _, PlayerData )
 
 	PlayerData, Data, ServerData, GUIData = ACF_RoundBaseGunpowder( PlayerData, Data, ServerData, GUIData )
 
-	Data.MinCalMult		= 0.2
-	Data.MaxCalMult		= 1.0
-	Data.PenModifier		= 1.08 --for 120mm. 726 @ 1.1. 630 @1.3
-	Data.VelModifier		= 1.1
-	Data.Ricochet		= 80
+	local GunClass = ACF.Weapons["Guns"][Data["Id"] or PlayerData["Id"]]["gunclass"]
+
+	if GunClass == "AC" or GunClass == "HMG" then
+
+		Data.MinCalMult	= 0.3
+		Data.MaxCalMult	= 1.0
+		Data.PenModifier	= 2 -- Autocannons are puny anyways
+		Data.VelModifier	= 1.5
+		Data.Ricochet	= 68
+	elseif GunClass == "RAC" then
+
+		Data.MinCalMult	= 0.5
+		Data.MaxCalMult	= 1.0
+		Data.PenModifier	= 1.8
+		Data.VelModifier	= 1.6
+		Data.Ricochet	= 68
+	elseif GunClass == "SA" then
+
+		Data.MinCalMult	= 0.22
+		Data.MaxCalMult	= 1.0
+		Data.PenModifier	= 2
+		Data.VelModifier	= 1.475
+		Data.Ricochet	= 68
+	else
+		Data.MinCalMult		= 0.2
+		Data.MaxCalMult		= 1.0
+		Data.PenModifier		= 1.08 --for 120mm. 726 @ 1.1. 630 @1.3
+		Data.VelModifier		= 1.1
+		Data.Ricochet		= 80
+	end
+
 
 	--Used for adapting acf2 apds/apfsds to the new format
 	PlayerData.Data5 = math.Clamp(PlayerData.Data5,Data.MinCalMult,Data.MaxCalMult)
@@ -46,7 +72,7 @@ function Round.convert( _, PlayerData )
 	Data.SCalMult	= PlayerData.Data5
 	Data.SubFrArea	= Data.FrArea * math.min(PlayerData.Data5,Data.MaxCalMult) ^ 2
 	Data.ProjMass	= Data.SubFrArea * (Data.ProjLength * 7.9 / 1000) * 2.5 * 0.95 --Volume of the projectile as a cylinder * density of steel
-	Data.ShovePower	= 0.2
+	Data.ShovePower	= 0.4
 	Data.PenArea		= (Data.PenModifier * Data.SubFrArea) ^ ACF.PenAreaMod
 
 	Data.DragCoef	= ((Data.SubFrArea / 10000) / Data.ProjMass)

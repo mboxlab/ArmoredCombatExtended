@@ -30,9 +30,11 @@ function ENT:Initialize()
 	self.ROFLimit            = 0			-- Used for selecting firerate
 
 	self.IsMaster            = true		-- needed?
+	self.OTWarnings	         = {} --Used to remember all the one time warnings.
 	self.AmmoLink            = {}
 	self.CrewLink            = {}
 	self.HasGunner           = false
+	self.RequiresGunner      = false
 	self.LoaderCount         = 0
 	self.CurAmmo             = 1
 	self.Sequence            = 1
@@ -49,6 +51,8 @@ function ENT:Initialize()
 	self.Inaccuracy          = 1
 	self.KERecoil			 = 0
 	self.LastThink           = 0
+
+	self.CanLegalCheck		= true
 
 end
 
@@ -110,12 +114,14 @@ do
 
 	--List of ids which no longer stay on ACE. Useful to replace them with the closest counterparts
 	local BackComp = {
-		["20mmHRAC"]    = "20mmRAC",
-		["30mmHRAC"]    = "30mmRAC",
-		["105mmSB"]     = "100mmSBC",
-		["120mmSB"]     = "120mmSBC",
-		["140mmSB"]     = "140mmSBC",
-		["170mmSB"]     = "170mmSBC"
+		["20mmHRAC"]     = "20mmRAC",
+		["30mmHRAC"]     = "30mmRAC",
+		["40mmGLSingle"] = "40mmSL",
+		["105mmSB"]      = "100mmSBC",
+		["120mmSB"]      = "120mmSBC",
+		["140mmSB"]      = "140mmSBC",
+		["170mmSB"]      = "170mmSBC"
+
 	}
 
 	local rapidgun = {
@@ -166,10 +172,17 @@ do
 		Gun.Class           = Lookup.gunclass
 		Gun.Heat            = ACE.AmbientTemp
 		Gun.LinkRangeMul    = math.max(Gun.Caliber / 10,1) ^ 1.2
+		Gun.ACEPoints		= (Lookup.acepoints or 0.404) * ACE.CannonPointMul
+		Gun.RequiresGunner	= false
+		local GunnerExcluded	= Lookup.gunnerexception or false
 
 		Gun.noloaders	= ClassData.noloader or nil
 
 		Gun.Inaccuracy = ClassData.spread
+
+		if not GunnerExcluded and (Gun.Caliber * 10) > ACF.LargeGunsThreshold and ACF.LargeGunsRequireGunners ~= 0 then --If the caliber is large enough it requires a gunner.
+			Gun.RequiresGunner = true
+		end
 
 		if ClassData.color then
 			Gun:SetColor(Color(ClassData.color[1],ClassData.color[2],ClassData.color[3], 255))
@@ -817,6 +830,9 @@ do
 	local FusedRounds = {
 		HE	= true,
 		HEFS	= true,
+		HESH	= true,
+		HEAT	= true,
+		THEAT	= true,
 		SM	= true,
 		CHE	= true,
 		CHEAT	= true,
@@ -831,6 +847,19 @@ do
 		if self.IsUnderWeight == nil then
 			self.IsUnderWeight = true
 		end
+
+		if self.RequiresGunner and not self.HasGunner then
+			local HasWarned = self.OTWarnings.WarnedGunner or false
+			--self.OTWarnings
+			if not HasWarned then
+				--print("No")
+				chatMessagePly( self:CPPIGetOwner() , "[ACE] Your gun is above [" .. ACF.LargeGunsThreshold .. " mm] and requires a gunner to operate.", Color( 255, 0, 0 ))
+				self.OTWarnings.WarnedGunner = true
+			end
+			return
+		end
+
+		ACE_DoContraptionLegalCheck(self)
 
 		local bool = true
 
@@ -994,7 +1023,7 @@ function ENT:LoadAmmo( AddTime, Reload )
 		Wire_TriggerOutput(self, "Muzzle Weight", math.floor(self.BulletData.ProjMass * 1000) )
 		Wire_TriggerOutput(self, "Muzzle Velocity", math.floor(self.BulletData.MuzzleVel * ACF.VelScale) )
 
-		self.KERecoil = (self.BulletData.PropMass * 39.37) * (GetConVar("acf_recoilpush"):GetFloat() or 1) * 500
+		self.KERecoil = (self.BulletData.PropMass * 39.37) * (GetConVar("acf_recoilpush"):GetFloat() or 1) * 375
 
 		self.NextFire = curTime + self.ReloadTime
 		local reloadTime = self.ReloadTime
