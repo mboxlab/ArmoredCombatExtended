@@ -31,6 +31,7 @@ do
 		self.IsMaster       = true
 		self.GearLink       = {} -- a "Link" has these components: Ent, Rope, RopeLen, ReqTq
 		self.FuelLink       = {}
+		self.OTWarnings		= {} --Used to remember all the one time warnings.
 
 		self.NextUpdate     = 0
 		self.LastThink      = 0
@@ -42,12 +43,16 @@ do
 		self.Legal          = true
 		self.CanUpdate      = true
 		self.RequiresFuel   = false
+		self.RequiresDriver = false
 		self.NextLegalCheck = ACF.CurTime + math.random(ACF.Legal.Min, ACF.Legal.Max) -- give any spawning issues time to iron themselves out
 		self.Legal          = true
 		self.LegalIssues    = ""
 		self.LockOnActive   = false --used to turn on the engine in case of being lockdown by not legal
 		self.CrewLink       = {}
 		self.HasDriver      = false
+		self.HasSeatDriver = false
+		self.CanUseSeatDriver = false
+		self.SeatDriverEnt = nil
 
 		self.LastDamageTime = CurTime()
 
@@ -59,6 +64,8 @@ do
 		Wire_TriggerOutput(self, "EngineHeat", self.Heat)
 
 		self.WireDebugName = "ACF Engine"
+
+		self.CanLegalCheck = true
 
 	end
 
@@ -113,17 +120,37 @@ do
 		Engine.EngineType       = Lookup.enginetype or "GenericPetrol"
 		Engine.TorqueCurve      = Lookup.torquecurve or ACF.GenericTorqueCurves[Engine.EngineType]
 		Engine.RequiresFuel     = Lookup.requiresfuel
+		Engine.RequiresDriver   = false
 		Engine.SoundPath        = Lookup.sound
 		Engine.DefaultSound     = Engine.SoundPath
 		Engine.SoundPitch       = Lookup.pitch or 100
-		Engine.SpecialHealth    = true
+		--Engine.SpecialHealth    = true
 		Engine.SpecialDamage    = true
 		Engine.TorqueMult       = 1
 		Engine.FuelTank         = 0
 		Engine.Heat             = ACE.AmbientTemp
 
+
+		local FuelCostMul = {
+			Petrol				= 1.0,
+			Diesel				= 1.2, --Due to generally higher torques
+			Multifuel			= 1.2, --Due to generally higher torques
+			Electric			= 0.8 --Due to odd power outputs
+		}
+		local PtsPerHP = 2.33
+		local FallBackCost = (Engine.peakkw / 0.7457) * PtsPerHP * (FuelCostMul[Engine.FuelType] or 1)
+		Engine.ACEPoints		= math.ceil((Lookup.acepoints or FallBackCost or 0.404) * ACE.EnginePointMul)
+
 		Engine.TorqueScale	= ACF.TorqueScale[Engine.EngineType]
 
+		if ACF.EnginesRequireFuel > 0 then
+			Engine.RequiresFuel = true
+		end
+
+		if Engine.peakkw > (74.57 / 100 * ACF.LargeEngineThreshold) and ACF.LargeEnginesRequireDrivers ~= 0 then --If the engine has more than 100 hp it requires a driver.
+			Engine.RequiresDriver = true
+			Engine.CanUseSeatDriver = true
+		end
 		--calculate base fuel usage
 		if Engine.EngineType == "Electric" then
 			Engine.FuelUse = ACF.ElecRate / (ACF.Efficiency[Engine.EngineType] * 60 * 60) --elecs use current power output, not max
@@ -208,10 +235,11 @@ function ENT:Update( ArgsTable )
 	self.SoundPath         = Lookup.sound
 	self.DefaultSound      = self.SoundPath
 	self.SoundPitch        = Lookup.pitch or 100
-	self.SpecialHealth     = true
+	self.SpecialHealth     = false
 	self.SpecialDamage     = true
 	self.TorqueMult        = self.TorqueMult or 1
 	self.FuelTank          = 0
+	self.ACEPoints			= Lookup.acepoints or 404
 
 	self.TorqueScale		= ACF.TorqueScale[self.EngineType]
 
@@ -267,6 +295,67 @@ function ENT:UpdateOverlayText()
 
 end
 
+function ENT:FindSeatForDriver()
+
+	local MaxDist = 348749.3 --Max distance to link driver seats. (15 meters * 39.37)^2 = 348749.3
+	local maxWeight = 0
+	local SeatEnt = nil
+
+	for _, ent in pairs( ACE.critEnts ) do
+
+
+		local eclass = ent:GetClass()
+
+		if eclass ~= "prop_vehicle_prisoner_pod" then continue end
+
+		local epos = ent:GetPos()
+		local spos = self:GetPos()
+		local SqDist = spos:DistToSqr( epos )
+
+		if SqDist > MaxDist then continue end --Outside link range. Continue.
+
+
+		local phys = ent:GetPhysicsObject()
+		if not IsValid(phys) then continue end
+		local Mass = phys:GetMass()
+		if Mass > maxWeight then
+			SeatEnt = ent
+			maxWeight = Mass
+		end
+	end
+
+	if SeatEnt then
+		self.HasSeatDriver = true
+		self.LinkedDriver = SeatEnt
+	end
+
+end
+
+function ENT:TestDriverDistance()
+
+	if not IsValid(self.LinkedDriver) then
+		self.HasSeatDriver = false
+		self.HasDriver = false
+		self.LinkedDriver = nil
+		return
+	end
+
+	local epos = self.LinkedDriver:GetPos()
+	local spos = self:GetPos()
+	local SqDist = spos:DistToSqr( epos )
+
+	local MaxDist = 348749.3 --Max distance to link driver seats. (15 meters * 39.37)^2 = 348749.3
+	if SqDist > MaxDist then
+		self.HasDriver = false
+		self.HasSeatDriver = false
+		self.LinkedDriver = nil
+		local soundstr =  "physics/metal/metal_box_impact_bullet" .. tostring(math.random(1, 3)) .. ".wav"
+		self:EmitSound(soundstr,500,100)
+	end
+
+
+end
+
 function ENT:TriggerInput( iname, value )
 
 	if (iname == "Throttle") then
@@ -275,6 +364,7 @@ function ENT:TriggerInput( iname, value )
 		if (value > 0 and not self.Active and self.Legal) then
 			--make sure we have fuel
 			local HasFuel
+			local HasDriver
 			if not self.RequiresFuel then
 				HasFuel = true
 			else
@@ -282,8 +372,20 @@ function ENT:TriggerInput( iname, value )
 					if fueltank.Fuel > 0 and fueltank.Active and fueltank.Legal then HasFuel = true break end
 				end
 			end
-
-			if HasFuel then
+			if not self.RequiresDriver then
+				HasDriver = true
+			else
+				if self.HasDriver or self.HasSeatDriver then
+					HasDriver = true
+				elseif self.CanUseSeatDriver then
+					self:FindSeatForDriver()
+					if IsValid(self.LinkedDriver) then
+						HasDriver = true
+					end
+				end
+			end
+			--RequiresDriver
+			if HasFuel and HasDriver then
 				self.Active = true
 				if self.SoundPath ~= "" then
 
@@ -296,7 +398,28 @@ function ENT:TriggerInput( iname, value )
 
 				end
 				self:ACFInit()
+			else
+
+				if not HasFuel then
+					local HasWarned = self.OTWarnings.WarnedFuel or false
+					--self.OTWarnings
+					if not HasWarned then
+						chatMessagePly( self:CPPIGetOwner() , "[ACE] Your engine requires fuel to work and that it be activated BEFORE the engine.", Color( 255, 0, 0 ))
+						self.OTWarnings.WarnedFuel = true
+					end
+				end
+
+				if not HasDriver then
+					local HasWarned = self.OTWarnings.WarnedDriver or false
+					--self.OTWarnings
+					if not HasWarned then
+						chatMessagePly( self:CPPIGetOwner() , "[ACE] Your engine is above [" .. ACF.LargeEngineThreshold .. " hp] requiring a driver to work.", Color( 255, 0, 0 ))
+						self.OTWarnings.WarnedDriver = true
+					end
+				end
+
 			end
+			ACE_DoContraptionLegalCheck(self)
 		elseif (value <= 0 and self.Active) then
 			self.Active = false
 			self.FlyRPM = 0
@@ -572,12 +695,19 @@ function ENT:CalcRPM()
 		Wire_TriggerOutput(self, "Fuel Use", 0)
 	end
 
+	ACE_DoContraptionLegalCheck(self)
+
+	if self.RequiresDriver and not (self.HasDriver or self.HasSeatDriver)  then
+		self:TriggerInput( "Active", 0 ) --shut off if no driver and requires it
+		return 0
+	end
+
 	------------------------ Torque & RPM calculation ------------------------
 
 	--adjusting performance based on damage
 	-- TorqueMult is a mutipler that affects the final Torque an engine can offer at its max.
 	-- PeakTorque is the final possible torque to get.
-	local driverboost = _self.HasDriver and ACF.DriverTorqueBoost or 1
+	local driverboost = _self.HasDriver and ACF.DriverTorqueBoost or 1 --Seat drivers dont give hp boost.
 	_self.TorqueMult = math_Clamp(((1 - _self.TorqueScale) / 0.5) * ((_self.ACF.Health / _self.ACF.MaxHealth) - 1) + 1, _self.TorqueScale, 1)
 	_self.PeakTorque = _self.PeakTorqueHeld * _self.TorqueMult * driverboost
 
@@ -688,6 +818,7 @@ do
 				self:EmitSound(soundstr,500,100)
 			end
 		end
+
 	end
 
 	-- Check fueltanks are within the range with the engine.
@@ -700,6 +831,9 @@ do
 				self:UpdateOverlayText()
 			end
 		end
+
+		self:TestDriverDistance()
+
 	end
 
 
@@ -865,7 +999,9 @@ do
 		table.insert( Target.Master, self )
 
 		Target.LinkedEngine = self
+		self.LinkedDriver = Target
 		self.HasDriver = true
+		self.CanUseSeatDriver = false --Driver specified. Seat can no longer be used as driver.
 		self:UpdateOverlayText()
 
 		return true, "Link successful!"

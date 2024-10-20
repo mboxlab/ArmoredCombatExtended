@@ -25,7 +25,8 @@ local RackWireDescs = {
 	["Delay"]        = "Sets a specific delay to guidance control over the default one in seconds.",
 
 	--Outputs
-	["Ready"]        = "Returns if the rack is ready to fire."
+	["Ready"]        = "Returns if the rack is ready to fire.",
+	["CurMissile"]        = "Outputs the next position of the missile in the rack getting fired."
 
 }
 
@@ -76,8 +77,8 @@ function ENT:Initialize()
 	self.Inputs = WireLib.CreateSpecialInputs( self, { "Fire",	"Reload (" .. RackWireDescs["Reload"] .. ")",	"Target Pos (" .. RackWireDescs["TargetPos"] .. ")", "Activate Guidance", "Track Delay (" .. RackWireDescs["Delay"] .. ")" },
 													{ "NORMAL", "NORMAL", "VECTOR", "NORMAL", "NORMAL" } )
 
-	self.Outputs = WireLib.CreateSpecialOutputs( self,  { "Ready (" .. RackWireDescs["Ready"] .. ")",	"Shots Left", "AcquiredTarget", "TargetDirection", "Current Missile", "Missile Info" },
-														{ "NORMAL", "NORMAL", "NORMAL", "VECTOR", "ENTITY", "STRING" } )
+	self.Outputs = WireLib.CreateSpecialOutputs( self,  { "Ready (" .. RackWireDescs["Ready"] .. ")",	"Shots Left", "AcquiredTarget", "TargetDirection", "Current Missile", "Missile Info", "CurMissile" },
+														{ "NORMAL", "NORMAL", "NORMAL", "VECTOR", "ENTITY", "STRING", "NORMAL" } )
 
 	Wire_TriggerOutput(self, "Ready", 1)
 	Wire_TriggerOutput(self, "Current Missile", nil)
@@ -102,6 +103,9 @@ function ENT:Initialize()
 
 	self.MissileEntity = NULL
 	self.MissileText = ""
+
+	self.CanLegalCheck = true
+
 end
 
 
@@ -151,6 +155,8 @@ function MakeACF_Rack(Owner, Pos, Angle, Id)
 
 	Rack.MaxMissile = table.Count(gundef.mountpoints) or 1
 	Rack.ReloadTime = gundef.magreload or 1 --Replace with fixed time delay rather than multiplier
+	Rack.ACEPoints	= (100 + (Rack.MaxMissile-1) * 50)
+	--Rack.ACEPoints	= 200
 
 	local gunclass = RackClasses[Rack.Class] or ErrorNoHalt("Couldn't find the " .. tostring(Rack.Class) .. " gun-class!")
 
@@ -280,6 +286,7 @@ function ENT:UpdateValidMissiles()
 			self.MissileText = self.MissileEntity.StringName
 			Wire_TriggerOutput(self, "Missile Info", self.MissileText)
 			Wire_TriggerOutput(self, "Current Missile", self.MissileEntity)
+			Wire_TriggerOutput(self, "CurMissile", MissileToShoot)
 			break
 		end
 	end
@@ -396,6 +403,7 @@ function ENT:ShootMissile()
 
 	if not ShotMissile:IsValid() then self.CurMissile = self:UpdateValidMissiles() return end
 
+	ACE_DoContraptionLegalCheck(self)
 
 	self.NextReload = CT + self.ReloadTime
 
@@ -575,13 +583,24 @@ function ENT:AddMissile(MissileSlot) --Where the majority of the missile paramat
 	missile.StringName = (ACF_GetRackValue(BulletData, "name") or ACF_GetGunValue(BulletData.Id, "name") or "") .. " - " .. BulletData.Type
 	missile.MinStartDelay = ACF_GetRackValue(BulletData, "armdelay") or ACF_GetGunValue(BulletData.Id, "armdelay") or 0.3
 
+	missile.MissileVelocityMul = ACF_GetRackValue(BulletData, "velmul") or ACF_GetGunValue(BulletData.Id, "velmul") or 3
+	missile.MissileCalMul = ACF_GetRackValue(BulletData, "calmul") or ACF_GetGunValue(BulletData.Id, "calmul") or 1
+
+	--0-stops underwater
+	--1-booster only underwater - DEFAULT
+	--2-works above and below 
+	--3-underwater only
+	--4-booster all and under thrust only
+
+	missile.UnderwaterThrust = ACF_GetRackValue(BulletData, "waterthrusttype") or ACF_GetGunValue(BulletData.Id, "waterthrusttype") or 1
+	missile.Buoyancy = ACF_GetRackValue(BulletData, "buoyancy") or ACF_GetGunValue(BulletData.Id, "buoyancy") or 0.5
 
 	local guidance  = BulletData.Data7
 	local fuse	= BulletData.Data8
 
 	if guidance then
 		guidance = ACFM_CreateConfigurable(guidance, GuidanceTable, bdata, "guidance")
---		if guidance then missile:SetGuidance(guidance) end
+		--if guidance then missile:SetGuidance(guidance) end
 		if guidance then
 			missile.Guidance = guidance
 			guidance:Configure(missile)
@@ -626,6 +645,8 @@ function ENT:AddMissile(MissileSlot) --Where the majority of the missile paramat
 	self.ReloadTime = ACF_GetRackValue(BulletData, "reloadspeed") or ACF_GetGunValue(BulletData.Id, "reloadspeed") or 1
 	self.ReloadDelay = ACF_GetRackValue(BulletData, "reloaddelay") or ACF_GetGunValue(BulletData.Id, "reloaddelay") or 1
 	self.Inaccuracy = ACF_GetRackValue(BulletData, "inaccuracy") or ACF_GetGunValue(BulletData.Id, "inaccuracy") or 0
+
+	missile.ACEPoints = CalculateMissileCost(BulletData)
 
 	if missile:IsValid() then
 		self:EmitSound("acf_extra/tankfx/gnomefather/reload12.wav", 500, 110)
@@ -1007,9 +1028,9 @@ do
 		--print(self.Bulletdata2.Type)
 
 		if InstantDetTable[self.Bulletdata2.Type] then
-			self.Bulletdata2.FuseLength = 0.001
+			self.Bulletdata2.FuseLength = 0.00001
 		else
-			self.Bulletdata2.FuseLength = 0.5 --The missile exploded. The shell shouldn't travel across the map.
+			self.Bulletdata2.FuseLength = 0.2 --The missile exploded. The shell shouldn't travel across the map.
 		end
 
 		self.Bulletdata2.Id = self.BulletData.Id
@@ -1058,7 +1079,7 @@ do
 		end
 
 		self.Bulletdata2.SlugCaliber2 = self.Bulletdata2.Caliber - self.Bulletdata2.Caliber * (math.sin(Rad) * 0.5 + math.cos(Rad) * 1.5) / 2
-		self.Bulletdata2.SlugMV = ((self.Bulletdata2.FillerMass / 2 * ACF.HEPower * (1 - self.Bulletdata2.HEAllocation) * math.sin(math.rad(10 + self.Bulletdata2.Data6) / 2) / self.Bulletdata2.SlugMass) ^ ACF.HEATMVScale) * (ACF_GetRackValue(self.BulletData, "penmul") or ACF_GetGunValue(self.BulletData.Id, "penmul") or 1) / ACF.KEtoRHA
+		self.Bulletdata2.SlugMV = ((self.Bulletdata2.FillerMass / 2 * ACF.HEPower * (1 - self.Bulletdata2.HEAllocation) * math.sin(math.rad(10 + self.Bulletdata2.Data6) / 2) / self.Bulletdata2.SlugMass) ^ ACF.HEATMVScale) * (ACF_GetRackValue(self.BulletData, "penmul") or ACF_GetGunValue(self.BulletData.Id, "penmul") or 1) / ACF.KEtoRHA -- / math.sqrt(ACF.ShellPenMul)
 		self.Bulletdata2.SlugMV2 = ((self.Bulletdata2.FillerMass / 2 * ACF.HEPower * self.Bulletdata2.HEAllocation * math.sin(math.rad(10 + self.Bulletdata2.Data13) / 2) / self.Bulletdata2.SlugMass2) ^ ACF.HEATMVScaleTan) --keep fillermass/2 so that penetrator stays the same
 
 
@@ -1243,5 +1264,35 @@ function ENT:ACF_OnDamage( Entity, Energy, FrArea, _, Inflictor, _, _ )	--This f
 	end
 
 	return HitRes --This function needs to return HitRes
+
+end
+
+do
+	local MissileGuidanceFactors = {
+		Dumb				= 0.3,
+		Straight_Running	= 0.45,
+		GPS					= 0.6,
+		Antimissile			= 0.6,
+		AntiRadiation		= 0.7,
+		Beam_Riding			= 0.7,
+		GPS_TerrainAvoidant = 0.8,
+		SACLOS				= 0.75,
+		Semiactive			= 0.85,
+		Wire				= 1.0,
+		Acoustic_Straight = 1.0,
+		Laser				= 1.2,
+		Infrared			= 1.2,
+		Top_Attack_IR		= 1.5,
+		Radar				= 1.5
+	}
+
+	function CalculateMissileCost(BulletData) --Used for both the missiles on the rack and the ammo entities
+		local Pts = ACF_GetRackValue(BulletData, "pointcost") or ACF_GetGunValue(BulletData.Id, "pointcost") or 0.9
+		local Guid = BulletData.Data7 or "Dumb"
+		Pts = Pts * MissileGuidanceFactors[Guid] or 0
+		return Pts
+
+	end
+
 
 end

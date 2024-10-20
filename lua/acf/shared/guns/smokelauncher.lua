@@ -5,7 +5,7 @@ ACF_defineGunClass("SL", {
 	name		= "Smoke Launcher",
 	desc		= ACFTranslation.GunClasses[14],
 	muzzleflash = "MO",
-	rofmod		= 45,
+	rofmod		= 50,
 	year		= 1941,
 	sound		= "ace_weapons/multi_sound/smoke_multi.mp3",
 	nolights	= true
@@ -24,8 +24,10 @@ ACF_defineGun("40mmSL", { --id
 	year		= 1941,
 	round = {
 		maxlength	= 17.5,
-		propweight	= 0.000075
-	}
+		propweight	= 0.007
+	},
+	acepoints = 10,
+	gunnerexception = true --Bypasses regular gunner rules.
 } )
 
 ACF_defineGun("20mmSL", { --id
@@ -40,8 +42,10 @@ ACF_defineGun("20mmSL", { --id
 	year		= 1941,
 	round = {
 		maxlength	= 17.5,
-		propweight	= 0.000075
-	}
+		propweight	= 0.0055
+	},
+	acepoints = 5,
+	gunnerexception = true --Bypasses regular gunner rules.
 } )
 
 ACF_defineGun("40mmCL", { --id
@@ -58,6 +62,8 @@ ACF_defineGun("40mmCL", { --id
 	year		= 1975,
 	round = {
 		maxlength	= 17.5,
-		propweight	= 0.001
-	}
+		propweight	= 0.007
+	},
+	acepoints = 30,
+	gunnerexception = true --Bypasses regular gunner rules.
 } )

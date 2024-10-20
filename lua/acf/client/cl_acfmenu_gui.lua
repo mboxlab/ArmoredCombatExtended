@@ -449,7 +449,7 @@ function ACFHomeGUICreate()
 
 	acfmenupanel["CData"]["VersionInit"] = vgui.Create( "DLabel" )
 	acfmenupanel["CData"]["VersionInit"]:SetText(versiontext)
-	acfmenupanel["CData"]["VersionInit"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"]["VersionInit"]:SetTextColor( Color( 0, 0, 0) )
 	acfmenupanel["CData"]["VersionInit"]:SizeToContents()
 	acfmenupanel.CustomDisplay:AddItem( acfmenupanel["CData"]["VersionInit"] )
 
@@ -458,7 +458,7 @@ function ACFHomeGUICreate()
 
 	acfmenupanel["CData"]["VersionText"]:SetFont("Trebuchet18")
 	acfmenupanel["CData"]["VersionText"]:SetText("ACE Is " .. versionstring .. "!\n\n")
-	acfmenupanel["CData"]["VersionText"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"]["VersionText"]:SetTextColor( Color( 0, 0, 0) )
 	acfmenupanel["CData"]["VersionText"]:SizeToContents()
 
 	acfmenupanel.CustomDisplay:AddItem( acfmenupanel["CData"]["VersionText"] )
@@ -533,7 +533,7 @@ function ACFHomeGUIUpdate( Table )
 	end
 
 	acfmenupanel["CData"]["VersionText"]:SetText(txt)
-	acfmenupanel["CData"]["VersionText"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"]["VersionText"]:SetTextColor( Color( 0, 0, 0) )
 	acfmenupanel["CData"]["VersionText"]:SetColor(color)
 	acfmenupanel["CData"]["VersionText"]:SizeToContents()
 
@@ -603,9 +603,6 @@ function ACFCLGUICreate()
 
 	Effects:CheckBox("Draw Mobility rope links", "ACF_MobilityRopeLinks")
 	Effects:ControlHelp( "Allow you to see the links between engines and gearboxes (requires dupe restart)" )
-
-	Effects:NumSlider( "Particle Multipler", "acf_cl_particlemul", 1, 5, 0 )
-	Effects:ControlHelp( "Adjusts the particles that will be created by ACE. Keep this low for better performance." )
 
 	acfmenupanel.CustomDisplay:AddItem( Effects )
 
@@ -1098,7 +1095,7 @@ function PANEL:AmmoSlider(Name, Value, Min, Max, Decimals, Title, Desc) --Variab
 	acfmenupanel["CData"][Name .. "_label"]:SetPos( 0, 0)
 	acfmenupanel["CData"][Name .. "_label"]:SetText( Title )
 	acfmenupanel["CData"][Name .. "_label"]:SizeToContents()
-	acfmenupanel["CData"][Name .. "_label"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"][Name .. "_label"]:SetTextColor( Color( 0, 0, 0) )
 
 	if acfmenupanel.AmmoData[Name] then
 			acfmenupanel["CData"][Name]:SetValue(acfmenupanel.AmmoData[Name])
@@ -1126,7 +1123,7 @@ function PANEL:AmmoSlider(Name, Value, Min, Max, Decimals, Title, Desc) --Variab
 
 	acfmenupanel["CData"][Name .. "_text"] = vgui.Create( "DLabel" )
 	acfmenupanel["CData"][Name .. "_text"]:SetText( Desc or "" )
-	acfmenupanel["CData"][Name .. "_text"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"][Name .. "_text"]:SetTextColor( Color( 0, 0, 0) )
 	acfmenupanel["CData"][Name .. "_text"]:SetTall( 20 )
 	acfmenupanel.CustomDisplay:AddItem( acfmenupanel["CData"][Name .. "_text"] )
 
@@ -1147,7 +1144,7 @@ function PANEL:AmmoCheckbox(Name, Title, Desc, Tooltip )
 
 	acfmenupanel["CData"][Name] = vgui.Create( "DCheckBoxLabel" )
 	acfmenupanel["CData"][Name]:SetText( Title or "" )
-	acfmenupanel["CData"][Name]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"][Name]:SetTextColor( Color( 0, 0, 0) )
 	acfmenupanel["CData"][Name]:SizeToContents()
 	acfmenupanel["CData"][Name]:SetChecked(acfmenupanel.AmmoData[Name] or false)
 
@@ -1176,7 +1173,7 @@ function PANEL:AmmoCheckbox(Name, Title, Desc, Tooltip )
 	acfmenupanel["CData"][Name .. "_text"] = acfmenupanel["CData"][Name .. "_text"]
 	acfmenupanel["CData"][Name .. "_text"] = vgui.Create( "DLabel" )
 	acfmenupanel["CData"][Name .. "_text"]:SetText( Desc or "" )
-	acfmenupanel["CData"][Name .. "_text"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"][Name .. "_text"]:SetTextColor( Color( 0, 0, 0) )
 	acfmenupanel.CustomDisplay:AddItem( acfmenupanel["CData"][Name .. "_text"] )
 
 	end
@@ -1202,7 +1199,7 @@ function PANEL:CPanelText(Name, Desc, Font, Panel)
 	acfmenupanel["CData"][Name .. "_text"] = vgui.Create( "DLabel" )
 
 	acfmenupanel["CData"][Name .. "_text"]:SetText( Desc or "" )
-	acfmenupanel["CData"][Name .. "_text"]:SetTextColor( Color( 0, 0, 0) )
+	--acfmenupanel["CData"][Name .. "_text"]:SetTextColor( Color( 0, 0, 0) )
 
 	if Font then acfmenupanel["CData"][Name .. "_text"]:SetFont( Font ) end
 
@@ -1223,3 +1220,7 @@ function PANEL:CPanelText(Name, Desc, Font, Panel)
 	acfmenupanel["CData"][Name .. "_text"]:SizeToContentsY()
 
 end
+
+net.Receive( "colorchatmessage", function( _, _ ) --Wooo colored chat
+	chat.AddText( net.ReadColor(), net.ReadString() )
+end )

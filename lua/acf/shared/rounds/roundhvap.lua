@@ -1,7 +1,7 @@
 
 AddCSLuaFile()
 
-ACF.AmmoBlacklist.HVAP =  { "MO", "RM", "SL", "GL", "HW", "MG", "SC", "BOMB" , "GBU", "ASM", "AAM", "SAM", "UAR", "POD", "FFAR", "ATGM", "ARTY", "ECM", "FGL","SBC"}
+ACF.AmmoBlacklist.HVAP =  { "MO", "RM", "SL", "GL", "HW", "MG", "SC", "BOMB" , "GBU", "ASM", "AAM", "SAM", "UAR", "POD", "FFAR", "ATGM", "ARTY", "ECM", "FGL","SBC","NAV","mNAV" }
 
 local Round = {}
 
@@ -48,7 +48,7 @@ function Round.convert( _, PlayerData )
 	Data.SCalMult = PlayerData["Data5"]
 	Data.SubFrArea = Data.FrArea * math.min(PlayerData.Data5, Data.MaxCalMult) ^ 2
 	Data.ProjMass = Data.SubFrArea * (Data.ProjLength * 7.9 / 1000) * 1.5 + (Data.FrArea - Data.SubFrArea) * (Data.ProjLength * 7.9 / 10000) --(Tungsten Core Mass + Sabot Exterior Mass) * Mass modifier used for bad aerodynamics
-	Data.ShovePower = 0.2
+	Data.ShovePower = 0.4
 	Data.PenArea = (Data.PenModifier * Data.SubFrArea) ^ ACF.PenAreaMod
 
 	Data.DragCoef = ((Data.FrArea / 10000) / Data.ProjMass) * 0.8

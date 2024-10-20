@@ -122,6 +122,7 @@ function ACF_Check(Entity)
 	end
 
 	local Class = Entity:GetClass()
+	if Entity.Exploding then return false end
 	if badclasses[Class] or string.find(Class, "func_") then
 		return false
 	end
@@ -240,7 +241,14 @@ end
 -- replaced with _ due to lack of use: Bone
 function ACF_VehicleDamage(Entity, Energy, FrArea, Angle, Inflictor, _, Gun, Type)
 
-	local HitRes = acf_CalcDamage(Entity, Energy, FrArea, Angle, Type)
+	--We create a dummy table to pass armour values to the calc function
+	local Target = {
+		ACF = {
+			Armour = 2 --8
+		}
+	}
+
+	local HitRes = ACF_CalcDamage( Target , Energy , FrArea , Angle  , Type)
 	local Driver = Entity:GetDriver()
 	local validd = Driver:IsValid()
 	local Entity_ACF = Entity.ACF
@@ -340,39 +348,184 @@ local SquishyDamageBoneSolver = {
 	[10] = boneSolver_10,
 }
 
-function ACF_SquishyDamage(Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
-	local Size = Entity:BoundingRadius()
+function ACF_SquishyDamage(Entity, Energy, FrArea, _, Inflictor, Bone, Gun, Type)
+	--local Size = Entity:BoundingRadius()
 	local Mass = Entity:GetPhysicsObject():GetMass()
+	local MaxPen = Energy.Penetration
+	local Penetration = MaxPen
+	--print("Pen: " .. math.Round(Penetration,1))
+	local MaxHealth = Entity:GetMaxHealth() --Used to set the max HP lost when hitting a nonvital part.
+	local MassRatio = Mass / 90 --Scalar for bodymass of entity. Used to make bigger creatures harder to kill.
 	local HitRes = {}
 	local Damage = 0
+	local BoneArmor = 0
 
-	-- We create a dummy table to pass armour values to the calc function
-	local Target = {ACF = {Armour = 0.1}}
+	local BodyArmor = 0 --Thickness of armor to determine if any damage taken.
+
+	local IsPly = false
+	if Entity:IsPlayer() then IsPly = true end
+
+	if IsPly then
+		BodyArmor = 3 * (1 + Entity:Armor() / 100) --Thickness of armor to determine if any damage taken. Having 200 armor has a 3x body armor mult.
+		--print("BodyArmorThickness: " .. BodyArmor)
+	end
+
+	local FleshThickness = 5 * MassRatio --Past the armor, the thickness of flesh in RHA to do max damage. 5mm for human.
+
+	local caliber = 20 * (FrArea ^ (1 / ACF.PenAreaMod) / 3.1416) ^ 0.5
+	local BaseDamage = caliber * (4 + 0.1 * caliber)
 
 	if Bone then
-		local solver = SquishyDamageBoneSolver[Bone]
-		if solver then
-			HitRes, Damage = solver(HitRes, Damage, Target, Mass, Size, Entity, Energy, FrArea, Angle, Inflictor, Bone, Gun, Type)
-		else
-			Target.ACF.Armour = Size * 0.2 * 0.02
-			HitRes = acf_CalcDamage(Target, Energy, FrArea, 0)
-			Damage = HitRes.Damage * 10
+		--This means we hit the head
+		if Bone == 1 then
+			--print("Head Hit")
+			BoneArmor = MassRatio * 3.6 --3.6mm for a human skull?
+
+			if IsPly and Entity:Armor() > 75 then --High enough armor. Assume we have a helmet.
+				BoneArmor = BoneArmor + BodyArmor
+			end
+
+			if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+				Penetration = Penetration - BoneArmor
+				--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+				Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+				Damage = Penetration * BaseDamage * 2.5 --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+			else
+				Penetration = 0
+			end
+
+			--This means we hit the torso. We are assuming body armour/tough exoskeleton/zombie don't give fuck here, so it's tough
+		elseif Bone == 0 or Bone == 2 or Bone == 3 then
+			--print("Body Hit")
+			BoneArmor = MassRatio * 2 --2mm for a ribcage?
+
+			--If we have any armor the chest will always be protected.
+			BoneArmor = BoneArmor + BodyArmor
+
+
+			if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+				Penetration = Penetration - BoneArmor
+				--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+				Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+				Damage = Penetration * BaseDamage --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+			else
+				Penetration = 0
+			end
+
+		elseif Bone == 4 or Bone == 5 then
+			--print("Arm Hit")
+
+			BoneArmor = 0 --Unprotected unless covered in armor?
+
+			if IsPly and Entity:Armor() > 50 then --High enough armor. Assume we have armor/kevelar.
+				BoneArmor = BoneArmor + BodyArmor / 4
+			end
+
+			if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+				Penetration = Penetration - BoneArmor
+				--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+				Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+				--As arms are nonvital you cannot take more than 20% of your health from an arm hit. Energy excluded.
+				Damage = math.min(Penetration * BaseDamage * 0.5, MaxHealth * 0.2) --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+			else
+				Penetration = 0
+			end
+
+		elseif Bone == 6 or Bone == 7 then
+			--print("Leg Hit")
+			BoneArmor = MassRatio * 0 --Unprotected unless covered in armor?
+
+			if IsPly and Entity:Armor() > 50 then --High enough armor. Assume we have armor/kevelar.
+				BoneArmor = BoneArmor + BodyArmor / 4
+			end
+
+			if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+				Penetration = Penetration - BoneArmor
+				--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+				Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+				--As arms are less vital you cannot take more than 30% of your health from an arm hit. Energy excluded.
+				Damage = math.min(Penetration * BaseDamage * 0.7, MaxHealth * 0.3) --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+			else
+				Penetration = 0
+			end
+
+		elseif Bone == 10 then
+			--print("Leg Hit")
+			BoneArmor = 0 --Unprotected unless covered in armor?
+
+			if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+				Penetration = Penetration - BoneArmor
+				--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+				Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+				--As it's entirely nonvital limit damage to 0.1x
+				Damage = math.min(Penetration * BaseDamage * 0.7, MaxHealth * 0.1) --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+			else
+				Penetration = 0
+			end
+		else --Just in case we hit something not standard
+			BoneArmor = MassRatio * 2 --2mm for a ribcage?
+
+			--If we have any armor the chest will always be protected.
+			BoneArmor = BoneArmor + BodyArmor
+
+
+			if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+				Penetration = Penetration - BoneArmor
+				--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+				Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+				Damage = Penetration * BaseDamage --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+			else
+				Penetration = 0
+			end
 		end
+	else --Just in case we hit something not standard
+		BoneArmor = MassRatio * 2 --2mm for a ribcage?
 
-	else -- Just in case we hit something not standard
-		Target.ACF.Armour = Size * 0.2 * 0.02
-		HitRes = acf_CalcDamage(Target, Energy, FrArea, 0, Type)
-		Damage = HitRes.Damage * 10
+		--If we have any armor the chest will always be protected.
+		BoneArmor = BoneArmor + BodyArmor
+
+
+		if Penetration > BoneArmor then --We penetrated any armor. Now do damage.
+			Penetration = Penetration - BoneArmor
+			--print("PenRemaining: " .. math.Round(Penetration-FleshThickness,1))
+			Penetration = math.min(Penetration / FleshThickness,1) -- Gets fraction penetrated
+
+			Damage = Penetration * BaseDamage --If we penetrate the armour then we get into the important bits inside, so DAMAGE
+		end
 	end
 
-	local dmg = 2.5
+	--if Type == "Spall" then
+		--dmg = 0.03
+		--print(Damage * dmg)
+	--end
 
-	if Type == "Spall" then
-		dmg = 0.03
-	end
+	--print("SquishyDamage: " .. math.Round(Damage,1))
+	--print("PenFraction: " .. math.Round(Penetration,1))
 
-	Entity:TakeDamage(Damage * dmg, Inflictor, Gun)
+	--local MaxDig = (( Energy.Penetration * 1 / Bullet.PenArea ) * ACF.KEtoRHA / ACF.GroundtoRHA ) / 25.4
+	--local EnergyRatio =  (FleshThickness * Penetration) / MaxPen
+	local EnergyAbsorbed = Penetration * (Energy.Kinetic or 0) --Technically unrealistic but eh. I'll look up a more advanced model for hydralic pressure eventually.
+	--print("Energy Absorbed: " .. EnergyAbsorbed .. "Kj")
+
+	Damage = Damage + EnergyAbsorbed --1 damage every 2 Kj absorbed.
+
+	Entity:TakeDamage(Damage, Inflictor, Gun)
 	HitRes.Kill = false
+
+	--We create a dummy table to pass armour values to the calc function
+	local Target = {
+		ACF = {
+			Armour = BoneArmor + FleshThickness
+		}
+	}
+
+	HitRes = ACF_CalcDamage(Target, Energy, FrArea, 0, Type)
 
 	return HitRes
 end
@@ -532,6 +685,140 @@ function ACE_CreateLinkRope(Pos, Ent1, LPos1, Ent2, LPos2)
 end
 
 --[[----------------------------------------------------------------------
+	A variation of the CreateKeyframeRope( ... ) for visualizing safezones
+	This one is more simple than the original function.
+	Creates a rope without any constraint
+------------------------------------------------------------------------]]
+function ACE_CreateSZRope( Pos, Ent, LPos1, LPos2 )
+
+	local rope = ents.Create( "keyframe_rope" )
+	rope:SetPos( Pos )
+	rope:SetKeyValue( "Width", 15 )
+	rope:SetKeyValue( "Type", 2 )
+
+	rope:SetKeyValue( "RopeMaterial", "cable/physbeam" )
+
+	-- Attachment point 1
+	rope:SetEntity( "StartEntity", Ent )
+	rope:SetKeyValue( "StartOffset", tostring( LPos1 ) )
+	rope:SetKeyValue( "StartBone", 0 )
+
+	-- Attachment point 2
+	rope:SetEntity( "EndEntity", Ent )
+	rope:SetKeyValue( "EndOffset", tostring( LPos2 ) )
+	rope:SetKeyValue( "EndBone", 0 )
+
+	rope:Spawn()
+	rope:Activate()
+
+	-- Delete the rope if the attachments get killed
+	Ent:DeleteOnRemove( rope )
+
+	return rope
+
+end
+
+function ACE_VisualizeSZ(Point1, Point2)
+
+	local SZEnt = ents.Create("prop_physics")
+	if SZEnt:IsValid() then
+		SZEnt:SetModel( "models/jaanus/wiretool/wiretool_pixel_med.mdl" )
+		SZEnt:Spawn()
+		SZEnt:SetColor( Color(255,0,0) )
+
+		local phys = SZEnt:GetPhysicsObject()
+		if (IsValid(phys)) then
+			phys:EnableMotion( false )
+		end
+		SZEnt:SetNotSolid( true )
+	end
+
+	--Upper Rectangle
+	local PT1 = Vector(Point1.x,Point1.y,Point2.z) + Vector(0,0,2)
+	local PT2 = Vector(Point2.x,Point1.y,Point2.z) + Vector(0,0,2)
+	local LPT1 = SZEnt:WorldToLocal(PT1)
+	local LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point1.x,Point1.y,Point2.z) + Vector(0,0,2)
+	PT2 = Vector(Point1.x,Point2.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point2.x,Point2.y,Point2.z) + Vector(0,0,2)
+	PT2 = Vector(Point1.x,Point2.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point2.x,Point2.y,Point2.z) + Vector(0,0,2)
+	PT2 = Vector(Point2.x,Point1.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	--Lower Rectangle
+	PT1 = Vector(Point1.x,Point1.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point2.x,Point1.y,Point1.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point1.x,Point1.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point1.x,Point2.y,Point1.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point2.x,Point2.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point1.x,Point2.y,Point1.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point2.x,Point2.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point2.x,Point1.y,Point1.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+	--4 corners
+	PT1 = Vector(Point2.x,Point2.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point2.x,Point2.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point1.x,Point1.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point1.x,Point1.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point1.x,Point2.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point1.x,Point2.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+	PT1 = Vector(Point2.x,Point1.y,Point1.z) + Vector(0,0,2)
+	PT2 = Vector(Point2.x,Point1.y,Point2.z) + Vector(0,0,2)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+
+--[[
+	PT1 = Vector(Point1.x,Point1.y,Point1.z)
+	PT2 = Vector(Point2.x,Point1.y,Point1.z)
+	LPT1 = SZEnt:WorldToLocal(PT1)
+	LPT2 = SZEnt:WorldToLocal(PT2)
+	ACE_CreateSZRope( PT1, SZEnt, LPT1, LPT2 )
+]]--
+
+	return SZEnt
+end
+
+--[[----------------------------------------------------------------------
 	This function will look for the driver/operator of a gun/rack based
 	from the used gun inputs when firing.
 	Meant for determining if the driver seat is legal.
@@ -591,3 +878,37 @@ function ACE_GetWeaponUser(Weapon, inp)
 
 	return inp:CPPIGetOwner()
 end
+
+util.AddNetworkString( "colorchatmessage" )
+
+	--Sends a colored message to a specified player.
+function chatMessagePly( ply , message, color) --
+
+	net.Start( "colorchatmessage" )
+		net.WriteColor( color or Color( 255, 255, 255 ) ) --Must go first
+		net.WriteString( message )
+	net.Send( ply )
+
+end
+
+
+function chatMessageGlobal( message, color) --Like chatMessagePly but it just goes to everyone.
+
+	print(message)
+	net.Start( "colorchatmessage" )
+		net.WriteColor( color or Color( 255, 255, 255 ) ) --Must go first
+		net.WriteString( message )
+	net.Broadcast()
+
+end
+
+
+--[[
+function chatMessageGlobal( message, color) --Like chatMessagePly but it just goes to everyone.
+
+	print(message)
+	for _, ply in ipairs( player.GetAll() ) do --Terrible. But you'd think the above would work.
+		chatMessagePly( ply , message, color)
+	end
+end
+]]--

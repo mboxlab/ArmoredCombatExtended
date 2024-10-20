@@ -59,10 +59,10 @@ function Round.convert( _, PlayerData )
 		Data.Ricochet	= 68
 	elseif GunClass == "SA" then
 
-		Data.MinCalMult	= 0.3
+		Data.MinCalMult	= 0.23
 		Data.MaxCalMult	= 1.0
 		Data.PenModifier	= 2
-		Data.VelModifier	= 1.6
+		Data.VelModifier	= 1.7
 		Data.Ricochet	= 68
 	elseif GunClass == "C" then
 
@@ -93,7 +93,7 @@ function Round.convert( _, PlayerData )
 	Data.SCalMult	= PlayerData.Data5
 	Data.SubFrArea	= Data.FrArea * math.min(PlayerData.Data5,Data.MaxCalMult) ^ 2
 	Data.ProjMass	= Data.SubFrArea * (Data.ProjLength * 7.9 / 1000) * 2.5 --Volume of the projectile as a cylinder * density of steel
-	Data.ShovePower	= 0.2
+	Data.ShovePower	= 0.4
 	Data.PenArea		= (Data.PenModifier * Data.SubFrArea) ^ ACF.PenAreaMod
 
 	Data.DragCoef	= ((Data.SubFrArea / 10000) / Data.ProjMass)

@@ -27,7 +27,9 @@ ACF_defineGun("40mmFGL", { --id
 	round = {
 		maxlength = 9,
 		propweight = 0.007
-	}
+	},
+	acepoints = 150,
+	gunnerexception = true --Bypasses regular gunner rules.
 } )
 
 --add a gun to the class
@@ -45,5 +47,7 @@ ACF_defineGun("60mmFGL", { --id
 	round = {
 		maxlength = 3,
 		propweight = 0.014
-	}
+	},
+	acepoints = 150,
+	gunnerexception = true --Bypasses regular gunner rules.
 } )
