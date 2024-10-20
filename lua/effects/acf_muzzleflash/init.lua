@@ -64,6 +64,7 @@ function EFFECT:Init( data )
 
 			-- Gets the appropiated muzzleflash according to the defined in the gun class
 			local MuzzleTable = ACE.MuzzleFlashes
+			if not MuzzleTable[MuzzleEffect] then return end
 			local MuzzleFunction = MuzzleTable[MuzzleEffect].muzzlefunc
 			local MuzzleCallBack = MuzzleTable["Default"].muzzlefunc
 			if MuzzleFunction then
